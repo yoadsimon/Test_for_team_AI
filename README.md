@@ -25,7 +25,8 @@ Build a **Python-based video processing tool** that extracts descriptive highlig
    - `LLM-generated summary`
 
 #### Technical Constraints:
-- ✅ Must use **Python** 
+- ✅ Must use **Python**
+- ✅ Must use **LMM** Help for chat
 - ✅ Must store data in a **PostgreSQL + pgvector** database.
 - ✅ Must follow **OOP principles** with good folder structure and separation of concerns (`processors`, `database`, `llm`, etc.).
 - ✅ Must include a **Docker setup** for both the Python service and PostgreSQL (with pgvector extension).
