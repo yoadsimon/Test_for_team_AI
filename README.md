@@ -41,6 +41,7 @@ Build a **Python-based video processing tool** that extracts descriptive highlig
 
 ## Note:
 - **The examinee must select the videos. A proper video is between thirty seconds and a minute and a half. The video must be uploaded along with the assignment, At least two videos must be selected.**
+- You can use free key  " https://aistudio.google.com/ "
 ---
 
 ## 💬 **Step 2: Interactive Chat About Video Highlights**
