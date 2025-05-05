@@ -52,7 +52,7 @@ Extend your system to allow users to **chat with a React frontend** and ask ques
 ### ✅ Requirements:
 
 #### Functional Goals:
-1. Build a **React frontend** that allows users to:
+1. Build a **Free choice frontend** that allows users to:
    - Enter a question (e.g., *“What happened after the person got out of the car?”*)
    - Select a video from a dropdown
    - See answers pulled **only from the database**
