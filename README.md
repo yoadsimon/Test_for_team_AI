@@ -63,7 +63,7 @@ Extend your system to allow users to **chat with a React frontend** and ask ques
    - Structures responses coherently based on matching highlights
 
 #### Technical Constraints:
-- ✅ Frontend in **React**
+- ✅ Frontend in **Free choice**
 - ✅ Backend in **Python** (FastAPI preferred)
 - ✅ Adheres to **OOP structure** for API, data access layer, and chat logic
 - ✅ Uses Docker for both frontend and backend
