@@ -1,5 +1,6 @@
 # Test_for_team_AI
-
+## submission  
+- Submit the assignment only on Github or GitLab.  
 ---
 
 ## 📹 **Step 1: Video Processor with LLM-Based Highlight Extraction**
