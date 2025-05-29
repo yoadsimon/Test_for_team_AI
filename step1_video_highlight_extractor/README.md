@@ -1,43 +1,97 @@
-# 📹 Step 1: Video Processor with LLM-Based Highlight Extraction
+# Video Highlight Extractor
 
-## 📁 Structure
+Extracts highlights from videos using LLM and stores them in PostgreSQL with pgvector.
+
+## Features
+
+- Video processing (.mp4, .mov)
+- Visual scene analysis
+- Audio transcription
+- LLM-based highlight extraction
+- PostgreSQL + pgvector storage
+- Docker containerization
+
+## Prerequisites
+
+- Docker and Docker Compose
+- Python 3.8+
+- Google AI Studio API key
+
+## Setup
+
+1. Copy environment file:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Add your Google AI Studio API key to `.env`:
+   ```
+   GOOGLE_AI_STUDIO_API_KEY=your_key_here
+   ```
+
+## Usage
+
+### Using Docker (Recommended)
+
+1. Start services:
+   ```bash
+   docker compose up -d
+   ```
+
+2. Run demo:
+   ```bash
+   ./run_demo.sh
+   ```
+
+### Local Development
+
+1. Create virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # or `venv\Scripts\activate` on Windows
+   ```
+
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Run migrations:
+   ```bash
+   alembic upgrade head
+   ```
+
+4. Start service:
+   ```bash
+   python src/main.py
+   ```
+
+## Project Structure
 
 ```
-src/
-├── processors/    # Video/audio processing
-├── database/     # Database models
-├── llm/         # Gemini AI
-├── services/    # Business logic
-└── utils/       # Helpers
+.
+├── src/                    # Source code
+│   ├── processors/        # Video and audio processing
+│   ├── llm/              # LLM integration
+│   ├── database/         # Database models and operations
+│   └── services/         # Business logic
+├── videos/               # Input videos
+├── output/              # Processed outputs
+├── migrations/          # Database migrations
+├── tests/              # Test files
+└── docker-compose.yml  # Docker configuration
 ```
 
-## 📝 Setup
+## Testing
 
-1. Copy `.env.example` to `.env`
-2. Add your Google AI key (get free key at https://aistudio.google.com/)
-
-
-## 🚀 Quick Start
-
-1. Add your videos to the `videos/` directory (.mp4 or .mov)
-2. Make the script executable:
+Run tests:
 ```bash
-chmod +x run_demo.sh
-```
-3. Run the demo script:
-```bash
-./run_demo.sh
+pytest tests/
 ```
 
-The script will:
-- Create `.env` if missing
-- Clean up any existing containers
-- Start fresh database with pgvector
-- Initialize database tables
-- Process all videos
-- Show how to view results
+## API
 
-Note: The database is automatically initialized with required extensions and tables.
+The service exposes no external API endpoints as it's designed to process videos and store results in the database for use by the chat interface.
 
 ## 📊 Database
 

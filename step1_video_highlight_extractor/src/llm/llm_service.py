@@ -35,6 +35,13 @@ class LLMService:
             # Initialize the model
             self.model = genai.GenerativeModel('models/gemini-1.5-flash')
             
+            # Initialize the embedding model
+            self.embedding_model = GoogleGenerativeAIEmbeddings(
+                model="models/embedding-001",
+                google_api_key=self.api_key,
+                task_type="retrieval_document"
+            )
+            
             # Set up the generation config
             self.generation_config = {
                 "temperature": 0.7,
@@ -46,7 +53,7 @@ class LLMService:
             # Set up logging
             self.logger = logging.getLogger(__name__)
         except Exception as e:
-            raise RuntimeError(f"Failed to initialize Gemini API: {str(e)}")
+            raise RuntimeError(f"Failed to initialize services: {str(e)}")
 
     def _generate_completion(self, prompt: str) -> str:
         """
@@ -65,7 +72,7 @@ class LLMService:
             )
             return response.text
         except Exception as e:
-            print(f"Error generating completion: {e}")
+            self.logger.error(f"Error generating completion: {e}")
             raise
 
     def generate_highlight_description(
@@ -214,22 +221,15 @@ Keep the summary clear and engaging, around 2-3 sentences.
             return "Error generating description."
 
     def generate_embedding(self, text: str) -> List[float]:
-        """Generate an embedding for the given text using LangChain's GoogleGenerativeAIEmbeddings."""
+        """Generate an embedding for the given text using Google's Gemini model."""
         try:
-            # Initialize the embedding model
-            embedding_model = GoogleGenerativeAIEmbeddings(
-                model="models/embedding-001",
-                google_api_key=self.api_key,
-                task_type="retrieval_document"
-            )
-            
-            # Generate embedding
-            embedding = embedding_model.embed_query(text)
+            # Generate embedding using Google's Gemini model
+            embedding = self.embedding_model.embed_query(text)
             return embedding
             
         except Exception as e:
-            self.logger.error(f"Failed to generate embedding using LangChain: {str(e)}")
-            return [0.0] * 1536
+            self.logger.error(f"Failed to generate embedding: {str(e)}")
+            return [0.0] * 1536  # Return zero vector of correct dimension
 
     def generate_summary(self, highlights: List[Dict[str, Any]]) -> str:
         """Generate a summary of the highlights."""

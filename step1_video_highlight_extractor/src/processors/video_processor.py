@@ -11,6 +11,9 @@ from faster_whisper import WhisperModel
 from ultralytics import YOLO
 import json
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -212,7 +215,7 @@ class VideoProcessor:
             return scenes
             
         except Exception as e:
-            print(f"Error detecting scenes: {e}")
+            logger.error(f"Error detecting scenes: {e}")
             # Fallback: treat the whole video as one scene
             video = cv2.VideoCapture(video_path)
             fps = video.get(cv2.CAP_PROP_FPS)

@@ -1,21 +1,62 @@
-# Video Highlight Extractor - Development Rules
+Test_for_team_AI
+submission
+Submit the assignment only on Github or GitLab.
+📹 Step 1: Video Processor with LLM-Based Highlight Extraction
+🎯 Task Overview:
+Build a Python-based video processing tool that extracts descriptive highlights from videos using an LLM (Large Language Model). The processed highlights should be stored in a PostgreSQL database using pgvector for similarity-based retrieval.
 
-# Always use Docker Compose for running scripts:
-# docker compose -f docker-compose.dev.yml exec dev <command>
+✅ Requirements:
+Functional Goals:
+Accept video files as input (e.g., .mp4, .mov).
+Automatically extract visual and audio descriptions (e.g., scenes, objects, speech-to-text).
+Use an LLM to:
+Select important moments (e.g., explosions, people speaking, vehicle movement).
+Generate detailed descriptions for each moment.
+Save each highlight to a PostgreSQL database with:
+timestamp
+description
+video_id
+embedding (pgvector)
+LLM-generated summary
+Technical Constraints:
+✅ Must use Python
+✅ Must use LMM Help for chat
+✅ Must store data in a PostgreSQL + pgvector database.
+✅ Must follow OOP principles with good folder structure and separation of concerns (processors, database, llm, etc.).
+✅ Must include a Docker setup for both the Python service and PostgreSQL (with pgvector extension).
+✅ Must contain a demo script showing:
+Video processing in action
+Output descriptions being saved to DB
+Deliverables:
+Python code with OOP structure
+Docker setup (docker-compose.yml)
+PostgreSQL schema
+✅ A very neat and clear README
+Note:
+The examinee must select the videos. A proper video is between thirty seconds and a minute and a half. The video must be uploaded along with the assignment, At least two videos must be selected.
+You can use free key " https://aistudio.google.com/ "
+💬 Step 2: Interactive Chat About Video Highlights
+🎯 Task Overview:
+Extend your system to allow users to chat with a React frontend and ask questions about the processed video highlights.
 
-# Working Examples:
-# 1. Start development environment:
-docker compose -f docker-compose.dev.yml up -d
-
-# 2. Run video processor tests (working example):
-docker compose -f docker-compose.dev.yml exec dev python -m tests.test_video_processor
-
-# 3. Run specific test function (working example):
-docker compose -f docker-compose.dev.yml exec dev python -m pytest tests/test_video_processor.py -k test_scene_detection
-
-# 4. Format code (working example):
-docker compose -f docker-compose.dev.yml exec dev black .
-docker compose -f docker-compose.dev.yml exec dev isort .
-
-# 5. Stop environment:
-docker compose -f docker-compose.dev.yml down
+✅ Requirements:
+Functional Goals:
+Build a Free choice frontend that allows users to:
+Enter a question (e.g., “What happened after the person got out of the car?”)
+See answers pulled only from the database
+Build a Python backend (FastAPI recommended) that:
+Accepts chat questions
+Uses embeddings or keyword search to match relevant highlights from the DB
+Responds only with content from the database (no real-time LLM response)
+Structures responses coherently based on matching highlights
+Technical Constraints:
+✅ Frontend in Free choice
+✅ Backend in Python (FastAPI preferred)
+✅ Adheres to OOP structure for API, data access layer, and chat logic
+✅ Uses Docker for both frontend and backend
+✅ Backend must pull data only from the database (LLM is not used in this step)
+✅ Clean modular architecture and routing in both React and Python
+✅ Include a neat README that explains:
+How to start each container
+Chat architecture
+Endpoint flow

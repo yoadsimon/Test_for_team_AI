@@ -19,16 +19,24 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-
-# Virtual Environment
-venv/
-env/
-ENV/
+MANIFEST
 .env
 .venv
-.python-version
+env/
+venv/
+ENV/
 
-# IDE
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDEs and editors
 .idea/
 .vscode/
 *.swp
@@ -37,36 +45,29 @@ ENV/
 *.sublime-workspace
 *.sublime-project
 
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-.nox/
-coverage.xml
-*.cover
-.hypothesis/
+# Project specific
+step1_video_highlight_extractor/output/
+step1_video_highlight_extractor/videos/*.wav
+step1_video_highlight_extractor/videos/*.mp4
+step1_video_highlight_extractor/videos/*.mov
+step1_video_highlight_extractor/videos/*.MOV
+step1_video_highlight_extractor/videos/*.MP4
+!step1_video_highlight_extractor/videos/demo_v2.MOV
+step1_video_highlight_extractor/*.pt
+step1_video_highlight_extractor/logs/
+step1_video_highlight_extractor/.pytest_cache/
 
 # Docker
 .docker/
 docker-compose.override.yml
 
-# Logs and databases
-*.log
+# Database
 *.sqlite3
 *.db
+
+# Logs
+*.log
 logs/
-*.pid
-*.seed
-*.pid.lock
-
-# Project specific
-step1_video_highlight_extractor/output/*
-!step1_video_highlight_extractor/output/.gitkeep
-
-# Model files (except the required YOLOv8 model)
-step1_video_highlight_extractor/*.pt
-!step1_video_highlight_extractor/yolov8n.pt
 
 # Temporary files
 *.tmp
@@ -90,4 +91,34 @@ step1_video_highlight_extractor/videos/*
 !step1_video_highlight_extractor/README.md
 !step1_video_highlight_extractor/migrations/
 !step1_video_highlight_extractor/src/
-!step1_video_highlight_extractor/tests/ 
+!step1_video_highlight_extractor/tests/
+
+# Step 2 Interactive Chat
+step2_Interactive_Chat/frontend/node_modules/
+step2_Interactive_Chat/frontend/build/
+step2_Interactive_Chat/frontend/.env
+step2_Interactive_Chat/frontend/.env.local
+step2_Interactive_Chat/frontend/.env.development.local
+step2_Interactive_Chat/frontend/.env.test.local
+step2_Interactive_Chat/frontend/.env.production.local
+step2_Interactive_Chat/frontend/npm-debug.log*
+step2_Interactive_Chat/frontend/yarn-debug.log*
+step2_Interactive_Chat/frontend/yarn-error.log*
+
+step2_Interactive_Chat/backend/__pycache__/
+step2_Interactive_Chat/backend/*.pyc
+step2_Interactive_Chat/backend/.env
+step2_Interactive_Chat/backend/.venv/
+step2_Interactive_Chat/backend/logs/
+step2_Interactive_Chat/backend/.pytest_cache/
+
+# Keep required files for step2
+!step2_Interactive_Chat/frontend/package.json
+!step2_Interactive_Chat/frontend/package-lock.json
+!step2_Interactive_Chat/frontend/README.md
+!step2_Interactive_Chat/backend/requirements.txt
+!step2_Interactive_Chat/backend/README.md
+!step2_Interactive_Chat/backend/Dockerfile
+!step2_Interactive_Chat/backend/Dockerfile.dev
+!step2_Interactive_Chat/docker-compose.yml
+!step2_Interactive_Chat/docker-compose.dev.yml 
