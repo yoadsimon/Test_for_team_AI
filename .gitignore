@@ -1,0 +1,93 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.env
+.venv
+.python-version
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+*.sublime-workspace
+*.sublime-project
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Logs and databases
+*.log
+*.sqlite3
+*.db
+logs/
+*.pid
+*.seed
+*.pid.lock
+
+# Project specific
+step1_video_highlight_extractor/output/*
+!step1_video_highlight_extractor/output/.gitkeep
+
+# Model files (except the required YOLOv8 model)
+step1_video_highlight_extractor/*.pt
+!step1_video_highlight_extractor/yolov8n.pt
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# Keep demo videos but ignore other videos
+step1_video_highlight_extractor/videos/*
+!step1_video_highlight_extractor/videos/demo_v2.MOV
+!step1_video_highlight_extractor/videos/demo_video.mp4  # Add your second demo video here
+
+# Keep required files
+!step1_video_highlight_extractor/.env.example
+!step1_video_highlight_extractor/requirements.txt
+!step1_video_highlight_extractor/Dockerfile
+!step1_video_highlight_extractor/Dockerfile.dev
+!step1_video_highlight_extractor/docker-compose.yml
+!step1_video_highlight_extractor/docker-compose.dev.yml
+!step1_video_highlight_extractor/run_demo.sh
+!step1_video_highlight_extractor/README.md
+!step1_video_highlight_extractor/migrations/
+!step1_video_highlight_extractor/src/
+!step1_video_highlight_extractor/tests/ 

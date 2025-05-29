@@ -1,0 +1,21 @@
+# Video Highlight Extractor - Development Rules
+
+# Always use Docker Compose for running scripts:
+# docker compose -f docker-compose.dev.yml exec dev <command>
+
+# Working Examples:
+# 1. Start development environment:
+docker compose -f docker-compose.dev.yml up -d
+
+# 2. Run video processor tests (working example):
+docker compose -f docker-compose.dev.yml exec dev python -m tests.test_video_processor
+
+# 3. Run specific test function (working example):
+docker compose -f docker-compose.dev.yml exec dev python -m pytest tests/test_video_processor.py -k test_scene_detection
+
+# 4. Format code (working example):
+docker compose -f docker-compose.dev.yml exec dev black .
+docker compose -f docker-compose.dev.yml exec dev isort .
+
+# 5. Stop environment:
+docker compose -f docker-compose.dev.yml down
