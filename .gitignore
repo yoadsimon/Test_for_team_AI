@@ -70,11 +70,18 @@ logs/
 step1_video_highlight_extractor/processed_media/
 step1_video_highlight_extractor/output/
 
+# Ignore video files
+step1_video_highlight_extractor/videos/*.mov
+step1_video_highlight_extractor/videos/*.MOV
+step1_video_highlight_extractor/videos/*.mp4
+step1_video_highlight_extractor/videos/*.MP4
+step1_video_highlight_extractor/videos/*.wav
+step1_video_highlight_extractor/videos/*.WAV
+
 # Keep all essential files
 !step1_video_highlight_extractor/src/
 !step1_video_highlight_extractor/migrations/
 !step1_video_highlight_extractor/tests/
-!step1_video_highlight_extractor/videos/
 !step1_video_highlight_extractor/*.sh
 !step1_video_highlight_extractor/Dockerfile
 !step1_video_highlight_extractor/docker-compose.yml
