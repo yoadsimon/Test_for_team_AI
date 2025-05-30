@@ -14,7 +14,13 @@ class DatabaseManager:
     def __init__(self):
         """Initialize the database manager with connection details."""
         self.db_url = self._get_database_url()
-        self.engine = create_engine(self.db_url)
+        self.engine = create_engine(
+            self.db_url, 
+            pool_pre_ping=True,
+            pool_timeout=30,
+            pool_recycle=3600,
+            connect_args={"connect_timeout": 10}
+        )
         self.SessionLocal = sessionmaker(
             autocommit=False, autoflush=False, bind=self.engine
         )
@@ -31,14 +37,57 @@ class DatabaseManager:
 
     def create_tables(self) -> None:
         """Create all database tables."""
-        with self.get_session() as session:
-            # Drop all tables first
-            Base.metadata.drop_all(bind=self.engine)
-            # Ensure pgvector extension exists
-            session.execute(text('CREATE EXTENSION IF NOT EXISTS vector;'))
-            session.commit()
-            # Create tables with new schema
-            Base.metadata.create_all(bind=self.engine)
+        print("🔍 Attempting to connect to database...")
+        try:
+            with self.get_session() as session:
+                print("✅ Database connection established")
+                # Check if tables exist and have data
+                try:
+                    print("🔍 Checking if highlights table exists...")
+                    # Try to query the highlights table to see if it exists and has data
+                    result = session.execute(text("SELECT COUNT(*) FROM highlights"))
+                    count = result.scalar()
+                    print(f"✅ Found {count} existing highlights")
+                    if count > 0:
+                        print(f"Database already contains {count} highlights. Skipping table recreation.")
+                        return
+                except Exception as e:
+                    # Table doesn't exist or other error, proceed with creation
+                    print(f"ℹ️  Table doesn't exist or error occurred: {e}. Proceeding with creation...")
+                    pass
+                
+                print("🗑️ Dropping existing tables...")
+                # Drop all tables first only if no data exists
+                try:
+                    # First, terminate any connections that might be holding locks
+                    session.execute(text("""
+                        SELECT pg_terminate_backend(pid) 
+                        FROM pg_stat_activity 
+                        WHERE datname = 'video_highlights' 
+                        AND pid <> pg_backend_pid()
+                        AND state = 'idle'
+                    """))
+                    session.commit()
+                    print("✅ Terminated idle connections")
+                except Exception as e:
+                    print(f"ℹ️  Could not terminate connections: {e}")
+                
+                Base.metadata.drop_all(bind=self.engine)
+                print("✅ Tables dropped")
+                
+                print("🔧 Creating pgvector extension...")
+                # Ensure pgvector extension exists
+                session.execute(text('CREATE EXTENSION IF NOT EXISTS vector;'))
+                session.commit()
+                print("✅ pgvector extension ready")
+                
+                print("🏗️ Creating new tables...")
+                # Create tables with new schema
+                Base.metadata.create_all(bind=self.engine)
+                print("✅ Tables created successfully")
+        except Exception as e:
+            print(f"❌ Database error: {e}")
+            raise
 
     def ensure_pgvector_extension(self) -> None:
         """Ensure the pgvector extension is installed in the database."""

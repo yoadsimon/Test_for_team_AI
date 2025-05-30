@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple, Dict, Any
 import logging
 from datetime import datetime
+import concurrent.futures
 
 from src.database import DatabaseManager, Video, Highlight
 from src.processors.video_processor import VideoProcessor, FrameInfo
@@ -53,6 +54,17 @@ class HighlightService:
         # Get video info
         duration, width, height, fps = self.video_processor.get_video_info(video_path)
         
+        # First, create and save the video entry
+        video = Video(
+            filename=os.path.basename(video_path),
+            duration=duration,
+            width=width,
+            height=height,
+            fps=fps,
+            created_at=datetime.now()
+        )
+        video = self.db.save_video(video)
+        
         # Extract audio
         self.logger.info("Extracting audio...")
         audio_path = self.video_processor.extract_audio(video_path)
@@ -77,81 +89,94 @@ class HighlightService:
         scenes = self.video_processor.detect_scenes(video_path)
         self.logger.info(f"Detected {len(scenes)} scenes.")
         
+        # Extract all frames once (major optimization!)
+        self.logger.info("Extracting all frames from video...")
+        all_frames = list(self.video_processor.extract_frames(video_path, max_frames=None))
+        self.logger.info(f"Extracted {len(all_frames)} frames total")
+
         # Process each segment to generate highlights
         highlights = []
-        for segment in all_segments:
+        def process_segment(segment):
             self.logger.info(f"Processing segment from {segment['start_time']:.2f}s to {segment['end_time']:.2f}s")
-            
-            # Extract frames for this segment
+            # Use pre-extracted frames instead of re-extracting (much faster!)
             frames = [
-                frame for frame in self.video_processor.extract_frames(video_path, max_frames=None)
+                frame for frame in all_frames
                 if segment['start_time'] <= frame.timestamp <= segment['end_time']
             ]
-            
             if not frames:
                 self.logger.warning(f"No frames extracted for segment {segment['start_time']:.2f}s – {segment['end_time']:.2f}s. Skipping.")
-                continue
-            
-            # Find the most representative frame (middle of segment)
+                return None
             segment_duration = segment['end_time'] - segment['start_time']
             target_time = segment['start_time'] + (segment_duration / 2)
             closest_frame = min(frames, key=lambda f: abs(f.timestamp - target_time))
-            
-            # Generate visual description
             frame_info = self.video_processor.prepare_frame_for_llm(closest_frame.frame)
-            stats = frame_info['statistics']
-            visual_desc = (
-                f"Frame analysis shows brightness: {stats['brightness']:.1f}, "
-                f"contrast: {stats['contrast']:.1f}, "
-                f"edge density: {stats['edges']['edge_density']:.2f}. "
-                f"The dominant colors are: " + 
-                " and ".join([f"RGB({c['rgb'][0]},{c['rgb'][1]},{c['rgb'][2]}) at {c['percent']*100:.1f}%" 
-                            for c in stats['dominant_colors'][:2]])
-            )
-            
-            # Prepare audio context
+            visual_desc = frame_info['semantic_description']
             audio_context = f"Contains speech: \"{segment['text']}\""
-            
-            # Generate highlight description
             description_obj = self.llm_service.generate_highlight_description(
                 visual_desc,
                 audio_context,
                 target_time
             )
-            
-            highlights.append(description_obj)
             self.logger.info(f"Added highlight at {target_time:.2f}s")
+            return description_obj
+
+        # Process segments with progress tracking
+        total_segments = len(all_segments)
+        self.logger.info(f"Starting parallel processing of {total_segments} segments...")
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            # Submit all tasks
+            futures = {executor.submit(process_segment, segment): i for i, segment in enumerate(all_segments)}
+            completed_count = 0
+            
+            # Monitor progress
+            for future in concurrent.futures.as_completed(futures):
+                completed_count += 1
+                try:
+                    result = future.result()
+                    if result is not None:
+                        highlights.append(result)
+                    self.logger.info(f"Progress: {completed_count}/{total_segments} segments completed ({completed_count/total_segments*100:.1f}%)")
+                except Exception as e:
+                    self.logger.error(f"Segment processing failed: {e}")
+        
+        self.logger.info(f"Parallel processing completed. Generated {len(highlights)} highlights from {total_segments} segments.")
         
         # Generate overall summary
         overall_summary = self._generate_video_summary(highlights)
         
-        # Store video in database
-        video = Video(
-            filename=os.path.basename(video_path),
-            duration=duration,
-            width=width,
-            height=height,
-            fps=fps,
-            summary=overall_summary,
-            created_at=datetime.now()
-        )
+        # Update video with summary
+        video.summary = overall_summary
         video = self.db.save_video(video)
         
         # Store highlights in database
-        for highlight in highlights:
-            # Generate embedding for the highlight description
-            embedding = self.llm_service.generate_embedding(highlight.description)
-            
-            # Create and save the highlight
-            db_highlight = Highlight(
-                video_id=video.id,
-                timestamp=highlight.timestamp,
-                description=highlight.description,
-                embedding=embedding,
-                summary=highlight.summary,
-                created_at=datetime.now()
-            )
-            self.db.save_highlight(db_highlight)
+        self.logger.info(f"Storing {len(highlights)} highlights in database...")
+        for i, highlight in enumerate(highlights):
+            try:
+                # Generate embedding for the highlight description
+                self.logger.info(f"Generating embedding for highlight {i+1}/{len(highlights)} at {highlight.timestamp:.2f}s")
+                embedding = self.llm_service.generate_embedding(highlight.description)
+                self.logger.info(f"Generated embedding with {len(embedding)} dimensions")
+                
+                # Create and save the highlight
+                db_highlight = Highlight(
+                    video_id=video.id,
+                    timestamp=highlight.timestamp,
+                    description=highlight.description,
+                    embedding=embedding,
+                    summary=highlight.summary,
+                    created_at=datetime.now()
+                )
+                self.logger.info(f"Saving highlight {i+1}/{len(highlights)} to database...")
+                saved_highlight = self.db.save_highlight(db_highlight)
+                self.logger.info(f"Successfully saved highlight with ID {saved_highlight.id}")
+                
+            except Exception as e:
+                self.logger.error(f"Failed to save highlight {i+1}/{len(highlights)} at {highlight.timestamp:.2f}s: {e}", exc_info=True)
+                # Continue with other highlights even if one fails
+                continue
+        
+        self.logger.info("Finished storing highlights in database.")
         
         return video
 

@@ -1,99 +1,31 @@
-# Interactive Chat Interface
+# 💬 Interactive Video Chat
 
-A web interface for asking questions about video highlights, powered by FastAPI and React.
+Chat interface for querying video highlights using natural language.
 
-## Features
-
-- React frontend with modern UI
+## ✨ Features
+- Natural language queries
+- Semantic search
+- React frontend
 - FastAPI backend
-- Semantic search using pgvector
-- Real-time responses
-- Docker containerization
 
-## Prerequisites
+## 🚀 Quick Start
 
-- Docker and Docker Compose
-- Python 3.8+ (for local backend)
-- Node.js 16+ (for local frontend)
-
-## Setup
-
-1. Copy environment files:
+1. Start services:
    ```bash
-   # Backend
-   cp backend/.env.example backend/.env
-   
-   # Frontend
-   cp frontend/.env.example frontend/.env
+   docker compose up -d
    ```
 
-## Usage
+2. Access:
+   - Web UI: http://localhost:3000
+   - API Docs: http://localhost:8000/docs
 
-### Using Docker (Recommended)
-
-Start all services:
-```bash
-docker compose up -d
-```
-
-Access the application:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
-- API Documentation: http://localhost:8000/docs
-
-### Local Development
-
-1. Backend (FastAPI):
-   ```bash
-   cd backend
-   python -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
-   uvicorn app.main:app --reload
-   ```
-
-2. Frontend (React):
-   ```bash
-   cd frontend
-   npm install
-   npm start
-   ```
-
-## Project Structure
-
+## 📁 Project Structure
 ```
 .
-├── backend/                # FastAPI backend
-│   ├── app/              # Application code
-│   │   ├── api/         # API endpoints
-│   │   ├── models/      # Database models
-│   │   └── services/    # Business logic
-│   └── Dockerfile       # Backend container
-└── frontend/             # React frontend
-    ├── src/             # Source code
-    │   ├── components/  # React components
-    │   ├── services/    # API services
-    │   └── styles/      # CSS styles
-    └── Dockerfile       # Frontend container
+├── frontend/        # React application
+│   ├── src/        # Frontend source
+│   └── Dockerfile  # Frontend container
+└── backend/        # FastAPI service
+    ├── app/        # Backend source
+    └── Dockerfile  # Backend container
 ```
-
-## API Endpoints
-
-### Chat API
-- `POST /api/chat/question`
-  - Request: `{ "text": "string" }`
-  - Response: `[{ "text": "string", "timestamp": float, "similarity_score": float }]`
-
-## Testing
-
-Run backend tests:
-```bash
-cd backend
-pytest
-```
-
-Run frontend tests:
-```bash
-cd frontend
-npm test
-``` 

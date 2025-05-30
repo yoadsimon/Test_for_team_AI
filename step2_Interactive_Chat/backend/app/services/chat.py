@@ -1,69 +1,90 @@
-from typing import List, Optional
+from typing import List, Dict, Any, Optional
 import os
 import numpy as np
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from app.core.config import settings
 from app.models.highlight import Highlight
+import logging
+
+logger = logging.getLogger(__name__)
 
 class ChatService:
-    def __init__(self, db: Session):
-        self.db = db
-        # Initialize the Gemini embedding model
-        self.model = GoogleGenerativeAIEmbeddings(
-            model="models/embedding-001",
-            google_api_key=settings.GOOGLE_API_KEY,
-            task_type="retrieval_document"
-        )
-
-    def get_relevant_highlights(self, question: str, limit: int = 5) -> List[dict]:
+    """
+    Service for handling chat interactions with video highlights.
+    Uses semantic search to find relevant highlights based on user questions.
+    """
+    
+    def __init__(self, db: Session) -> None:
         """
-        Find relevant highlights based on the question using semantic search.
-        Returns highlights with their similarity scores.
+        Initialize the chat service.
+        
+        Args:
+            db: Database session
+        """
+        self.db = db
+        try:
+            self.model = GoogleGenerativeAIEmbeddings(
+                model="models/embedding-001",
+                google_api_key=settings.GOOGLE_API_KEY,
+                task_type="retrieval_document"
+            )
+        except Exception as e:
+            logger.error(f"Failed to initialize embedding model: {e}")
+            raise
+
+    def get_relevant_highlights(self, question: str, limit: int = 5) -> List[Dict[str, Any]]:
+        """
+        Find relevant highlights based on semantic similarity to the question using pgvector.
+        
+        Args:
+            question: User's question text
+            limit: Maximum number of highlights to return
+            
+        Returns:
+            List of highlight dictionaries with similarity scores
+            
+        Raises:
+            ValueError: If there's an error processing the question
         """
         try:
-            # Generate embedding for the question
+            # Generate question embedding
             question_embedding = self.model.embed_query(question)
-            # Convert to numpy array for manual l2 distance computation
-            question_embedding_np = np.array(question_embedding)
-
-            # Query highlights (without using l2_distance on the DB side)
+            
+            # Use pgvector's cosine distance operator (<=>) for similarity search
+            # The cosine distance is converted to a similarity score (1 - distance)
             highlights = (
-                self.db.query(Highlight)
-                .filter(Highlight.embedding != None)
+                self.db.query(
+                    Highlight,
+                    (1 - Highlight.embedding.cosine_distance(question_embedding)).label('similarity_score')
+                )
+                .filter(Highlight.embedding.isnot(None))
+                .filter(1 - Highlight.embedding.cosine_distance(question_embedding) >= settings.SIMILARITY_THRESHOLD)
+                .order_by(Highlight.embedding.cosine_distance(question_embedding))
+                .limit(limit)
                 .all()
             )
-
-            # Compute l2 distance manually and sort
-            highlight_distances = []
-            for highlight in highlights:
-                # Convert highlight.embedding (assumed to be a list or numpy array) to a numpy array
-                highlight_embedding_np = np.array(highlight.embedding)
-                # Compute l2 distance using numpy.linalg.norm
-                distance = np.linalg.norm(highlight_embedding_np - question_embedding_np)
-                highlight_distances.append((highlight, distance))
-
-            # Sort by distance (ascending) and take the top 'limit' highlights
-            highlight_distances.sort(key=lambda x: x[1])
-            top_highlights = [h for h, _ in highlight_distances[:limit]]
-
-            # Format results with similarity scores
-            results = []
-            for highlight in top_highlights:
-                # (Recompute distance if needed, or use the stored distance from highlight_distances)
-                highlight_embedding_np = np.array(highlight.embedding)
-                distance = np.linalg.norm(highlight_embedding_np - question_embedding_np)
-                similarity_score = 1.0 / (1.0 + distance)  # Convert distance to similarity score
-
-                if similarity_score >= settings.SIMILARITY_THRESHOLD:
-                    results.append({
-                        "id": highlight.id,
-                        "text": highlight.description,  # Using description from step1 schema
-                        "timestamp": highlight.timestamp,
-                        "similarity_score": similarity_score,
-                        "summary": highlight.summary
-                    })
-
+            
+            if not highlights:
+                logger.warning("No highlights found in database")
+                return []
+            
+            # Convert to response format
+            results = [
+                {
+                    "id": highlight.id,
+                    "text": highlight.description,
+                    "timestamp": highlight.timestamp,
+                    "similarity_score": similarity_score,
+                    "summary": highlight.summary
+                }
+                for highlight, similarity_score in highlights
+            ]
+            
+            logger.info(f"Found {len(results)} relevant highlights for question")
             return results
+            
         except Exception as e:
-            raise ValueError(f"Error processing question: {str(e)}") 
+            logger.error(f"Error processing question: {e}", exc_info=True)
+            raise ValueError(f"Failed to process question: {str(e)}") 

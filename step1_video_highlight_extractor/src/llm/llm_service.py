@@ -93,21 +93,28 @@ class LLMService:
             HighlightDescription object containing the description and summary
         """
         # Prepare prompt
-        prompt = f"""You are a video content analyzer. Analyze this moment from a video (timestamp: {timestamp:.1f}s):
+        prompt = f"""You are a professional video content analyst. Analyze this moment from a video (timestamp: {timestamp:.1f}s):
 
 Visual content: {visual_context}
 Audio content: {audio_context}
 
-Please provide a concise but meaningful description that:
-1. Integrates both visual and audio information naturally
-2. Focuses on the most important aspects of the moment
-3. Provides context about what's happening
-4. Mentions any speech or significant audio if present
-5. Describes the scene's atmosphere and mood
+Please provide a clear, engaging description that:
+1. Focuses on what's happening in the scene - the key actions, events, or moments
+2. Describes who or what is in the scene and what they're doing
+3. Integrates any speech or audio naturally into the description
+4. Captures the mood or atmosphere of the moment
+5. Uses natural, conversational language
+6. Avoids technical details unless they're crucial to understanding the content
 
 Format your response exactly as follows:
-DESCRIPTION: [A clear, focused description that naturally combines visual and audio elements]
-SUMMARY: [A one-sentence summary capturing the main point of this moment]
+DESCRIPTION: [A clear, engaging description that tells what's happening in this moment]
+SUMMARY: [A one-sentence summary that captures the main point or significance of this moment]
+
+Example good description:
+"John confidently walks into the conference room, carrying a presentation folder. He greets the team with a smile and begins setting up his laptop. The room is well-lit with natural light from large windows, and the team appears attentive and engaged."
+
+Example good summary:
+"John enters a meeting room to deliver a presentation to an engaged team."
 """
 
         # Generate description

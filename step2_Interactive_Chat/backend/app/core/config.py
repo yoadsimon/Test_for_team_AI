@@ -19,12 +19,12 @@ class Settings(BaseSettings):
         "http://localhost:8000",  # Backend
     ]
     
-    # Database Settings - Hardcoded for Step 1's database
-    POSTGRES_HOST: str = "step1_video_highlight_extractor-db-1"  # Use the actual container name
-    POSTGRES_PORT: str = "5432"  # Internal PostgreSQL port
-    POSTGRES_USER: str = "postgres"
-    POSTGRES_PASSWORD: str = "postgres"
-    POSTGRES_DB: str = "video_highlights_test"
+    # Database Settings
+    POSTGRES_HOST: str
+    POSTGRES_PORT: str
+    POSTGRES_USER: str
+    POSTGRES_PASSWORD: str
+    POSTGRES_DB: str
     
     # Model Settings
     EMBEDDING_MODEL: str = "all-mpnet-base-v2"  # 768-dimensional model

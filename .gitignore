@@ -20,6 +20,8 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+
+# Environment files
 .env
 .venv
 env/
@@ -45,18 +47,6 @@ yarn-error.log*
 *.sublime-workspace
 *.sublime-project
 
-# Project specific
-step1_video_highlight_extractor/output/
-step1_video_highlight_extractor/videos/*.wav
-step1_video_highlight_extractor/videos/*.mp4
-step1_video_highlight_extractor/videos/*.mov
-step1_video_highlight_extractor/videos/*.MOV
-step1_video_highlight_extractor/videos/*.MP4
-!step1_video_highlight_extractor/videos/demo_v2.MOV
-step1_video_highlight_extractor/*.pt
-step1_video_highlight_extractor/logs/
-step1_video_highlight_extractor/.pytest_cache/
-
 # Docker
 .docker/
 docker-compose.override.yml
@@ -75,50 +65,54 @@ logs/
 *.swp
 *~
 
-# Keep demo videos but ignore other videos
-step1_video_highlight_extractor/videos/*
-!step1_video_highlight_extractor/videos/demo_v2.MOV
-!step1_video_highlight_extractor/videos/demo_video.mp4  # Add your second demo video here
+# Step 1: Video Highlight Extractor
+# Ignore temporary processing directories
+step1_video_highlight_extractor/processed_media/
+step1_video_highlight_extractor/output/
 
-# Keep required files
-!step1_video_highlight_extractor/.env.example
-!step1_video_highlight_extractor/requirements.txt
-!step1_video_highlight_extractor/Dockerfile
-!step1_video_highlight_extractor/Dockerfile.dev
-!step1_video_highlight_extractor/docker-compose.yml
-!step1_video_highlight_extractor/docker-compose.dev.yml
-!step1_video_highlight_extractor/run_demo.sh
-!step1_video_highlight_extractor/README.md
-!step1_video_highlight_extractor/migrations/
+# Keep all essential files
 !step1_video_highlight_extractor/src/
+!step1_video_highlight_extractor/migrations/
 !step1_video_highlight_extractor/tests/
+!step1_video_highlight_extractor/videos/
+!step1_video_highlight_extractor/*.sh
+!step1_video_highlight_extractor/Dockerfile
+!step1_video_highlight_extractor/docker-compose.yml
+!step1_video_highlight_extractor/requirements.txt
+!step1_video_highlight_extractor/README.md
+!step1_video_highlight_extractor/yolov8n.pt
+!step1_video_highlight_extractor/.env.example
 
-# Step 2 Interactive Chat
+# Step 2: Interactive Chat
+# Ignore temporary and build files
 step2_Interactive_Chat/frontend/node_modules/
 step2_Interactive_Chat/frontend/build/
-step2_Interactive_Chat/frontend/.env
-step2_Interactive_Chat/frontend/.env.local
-step2_Interactive_Chat/frontend/.env.development.local
-step2_Interactive_Chat/frontend/.env.test.local
-step2_Interactive_Chat/frontend/.env.production.local
-step2_Interactive_Chat/frontend/npm-debug.log*
-step2_Interactive_Chat/frontend/yarn-debug.log*
-step2_Interactive_Chat/frontend/yarn-error.log*
-
+step2_Interactive_Chat/frontend/.env*
 step2_Interactive_Chat/backend/__pycache__/
 step2_Interactive_Chat/backend/*.pyc
-step2_Interactive_Chat/backend/.env
+step2_Interactive_Chat/backend/.env*
 step2_Interactive_Chat/backend/.venv/
-step2_Interactive_Chat/backend/logs/
 step2_Interactive_Chat/backend/.pytest_cache/
 
-# Keep required files for step2
+# Keep all essential files
+!step2_Interactive_Chat/frontend/src/
+!step2_Interactive_Chat/frontend/public/
 !step2_Interactive_Chat/frontend/package.json
 !step2_Interactive_Chat/frontend/package-lock.json
 !step2_Interactive_Chat/frontend/README.md
+!step2_Interactive_Chat/frontend/Dockerfile
+!step2_Interactive_Chat/backend/app/
+!step2_Interactive_Chat/backend/alembic/
+!step2_Interactive_Chat/backend/alembic.ini
 !step2_Interactive_Chat/backend/requirements.txt
 !step2_Interactive_Chat/backend/README.md
 !step2_Interactive_Chat/backend/Dockerfile
-!step2_Interactive_Chat/backend/Dockerfile.dev
+!step2_Interactive_Chat/backend/.env.example
 !step2_Interactive_Chat/docker-compose.yml
-!step2_Interactive_Chat/docker-compose.dev.yml 
+!step2_Interactive_Chat/*.sh
+
+# Root level files
+!.cursorrules
+!README.md
+!start_all.sh
+!.env.example

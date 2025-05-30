@@ -12,6 +12,7 @@ from ultralytics import YOLO
 import json
 import os
 import logging
+from sklearn.cluster import KMeans
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +70,7 @@ class VideoProcessor:
         self.yolo_model = YOLO("yolov8n.pt")  # Use nano model for speed
         
         # Create output directories
-        self.output_dir = Path("output")
+        self.output_dir = Path("processed_media")
         self.frames_dir = self.output_dir / "frames"
         self.scenes_dir = self.output_dir / "scenes"
         for dir_path in [self.output_dir, self.frames_dir, self.scenes_dir]:
@@ -464,67 +465,118 @@ class VideoProcessor:
 
     def prepare_frame_for_llm(self, frame):
         """
-        Prepare a frame for LLM analysis by extracting visual features.
+        Prepare a frame for LLM analysis by extracting meaningful visual features.
         
         Args:
-            frame: OpenCV frame
+            frame: The video frame to analyze
             
         Returns:
-            Dictionary with frame analysis
+            Dictionary containing frame data and semantic visual description
         """
-        # Ensure frame is in BGR format (OpenCV's default)
-        if len(frame.shape) != 3 or frame.shape[2] != 3:
-            raise ValueError("Frame must be a 3-channel BGR image")
-            
-        # Convert BGR to RGB for color analysis (since RGB is more intuitive for color descriptions)
+        # Convert frame to RGB if needed
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         
-        # Calculate brightness and contrast on the RGB frame
+        # Basic image statistics
         brightness = np.mean(frame_rgb)
         contrast = np.std(frame_rgb)
         
-        # Calculate edge density on a grayscale copy
+        # Edge detection for scene complexity
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         edges = cv2.Canny(gray, 100, 200)
-        edge_density = np.sum(edges > 0) / (edges.shape[0] * edges.shape[1])
-        edge_intensity = np.mean(edges) / 255.0
+        edge_density = np.count_nonzero(edges) / (edges.shape[0] * edges.shape[1])
         
-        # Update motion detection
-        if self._prev_frame is None or self._prev_frame.shape != gray.shape:
-            self._prev_frame = gray
-            motion_level = 0.0
+        # Simple color analysis using histograms
+        # Split into RGB channels
+        r, g, b = cv2.split(frame_rgb)
+        
+        # Calculate mean values for each channel
+        r_mean = np.mean(r)
+        g_mean = np.mean(g)
+        b_mean = np.mean(b)
+        
+        # Determine dominant color
+        max_channel = max(r_mean, g_mean, b_mean)
+        if max_channel == r_mean:
+            dominant_color = "red"
+        elif max_channel == g_mean:
+            dominant_color = "green"
         else:
-            motion = cv2.absdiff(gray, self._prev_frame)
-            motion_level = np.mean(motion)
-            self._prev_frame = gray
+            dominant_color = "blue"
             
-        # Analyze dominant colors using RGB frame
-        small = cv2.resize(frame_rgb, (32, 32))
-        colors = small.reshape(-1, 3)
-        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-        _, labels, centers = cv2.kmeans(np.float32(colors), 3, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
-        centers = np.uint8(centers)
-        counts = np.bincount(labels.flatten())
-        percents = counts / counts.sum()
+        # Calculate color temperature (warm vs cool)
+        # Warm colors have higher red component, cool colors have higher blue
+        color_temp = "warm" if r_mean > b_mean * 1.1 else "cool" if b_mean > r_mean * 1.1 else "neutral"
         
-        # Store colors in RGB format
-        dominant_colors = []
-        for percent, color in sorted(zip(percents, centers), reverse=True):
-            r, g, b = color  # Already in RGB format
-            dominant_colors.append({"rgb": (r, g, b), "percent": float(percent)})
-            
+        # Calculate color intensity
+        if max(r_mean, g_mean, b_mean) < 85:
+            intensity = "dark"
+        elif max(r_mean, g_mean, b_mean) < 170:
+            intensity = "muted"
+        else:
+            intensity = "bright"
+        
+        # Generate semantic description
+        scene_type = self._analyze_scene_type(frame_rgb, edge_density, r_mean, g_mean, b_mean)
+        lighting = self._analyze_lighting(brightness, contrast)
+        color_mood = f"with {intensity} {color_temp} tones"
+        activity_level = self._analyze_activity_level(edge_density)
+        
+        semantic_description = f"{scene_type} {lighting} {color_mood} {activity_level}"
+        
         return {
-            "frame": frame_rgb,  # Return RGB frame for consistency
+            "frame": frame_rgb,
             "statistics": {
                 "brightness": float(brightness),
                 "contrast": float(contrast),
                 "edges": {
-                    "edge_density": float(edge_density),
-                    "edge_intensity": float(edge_intensity)
+                    "edge_density": float(edge_density)
                 },
-                "dominant_colors": dominant_colors
-            }
+                "colors": {
+                    "r_mean": float(r_mean),
+                    "g_mean": float(g_mean),
+                    "b_mean": float(b_mean),
+                    "dominant": dominant_color,
+                    "temperature": color_temp,
+                    "intensity": intensity
+                }
+            },
+            "semantic_description": semantic_description
         }
+    
+    def _analyze_scene_type(self, frame, edge_density, r_mean, g_mean, b_mean):
+        """Analyze the type of scene based on visual features."""
+        # Determine if it's indoor/outdoor based on color distribution
+        # Outdoor scenes tend to have more blue (sky) or green (nature)
+        is_outdoor = (b_mean > max(r_mean, g_mean) * 1.2 or 
+                     g_mean > max(r_mean, b_mean) * 1.2)
+        
+        # Determine scene complexity
+        if edge_density < 0.05:
+            complexity = "simple"
+        elif edge_density < 0.15:
+            complexity = "moderate"
+        else:
+            complexity = "complex"
+            
+        return f"A {complexity} {'outdoor' if is_outdoor else 'indoor'} scene"
+    
+    def _analyze_lighting(self, brightness, contrast):
+        """Analyze the lighting conditions."""
+        if brightness < 85:
+            return "in dim lighting"
+        elif brightness < 170:
+            return "in moderate lighting"
+        else:
+            return "in bright lighting"
+    
+    def _analyze_activity_level(self, edge_density):
+        """Analyze the level of activity or movement in the scene."""
+        if edge_density < 0.05:
+            return "showing minimal movement"
+        elif edge_density < 0.15:
+            return "with moderate activity"
+        else:
+            return "with high activity or movement"
 
     def _describe_frame_content(self, motion_level, edge_density, dominant_colors):
         """

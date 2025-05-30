@@ -1,1 +1,0 @@
-"""Test package for the video highlight extractor.""" 

@@ -1,34 +1,63 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 import logging
+from typing import List
+
 from app.database.session import get_db
 from app.services.chat import ChatService
-from app.schemas.chat import QuestionRequest
+from app.schemas.chat import QuestionRequest, HighlightResponse
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/chat",
+    tags=["chat"],
+    responses={
+        404: {"description": "Not found"},
+        500: {"description": "Internal server error"}
+    }
+)
 
-@router.post("/chat/question")
+@router.post("/question", response_model=List[HighlightResponse])
 async def ask_question(
     question: QuestionRequest,
     db: Session = Depends(get_db)
-):
+) -> List[HighlightResponse]:
     """
-    Ask a question about the video highlights.
-    Returns relevant highlights based on semantic similarity.
+    Ask a question about video highlights and get relevant responses.
+    
+    Args:
+        question: The question request containing the text to search for
+        db: Database session dependency
+        
+    Returns:
+        List of relevant highlights with similarity scores
+        
+    Raises:
+        HTTPException: If there's an error processing the question
     """
     try:
-        logger.info(f"Received question: {question.text}")
+        logger.info(f"Processing question: {question.text[:100]}...")
         chat_service = ChatService(db)
         highlights = chat_service.get_relevant_highlights(question.text)
+        
+        if not highlights:
+            logger.info("No relevant highlights found")
+            return []
+            
         logger.info(f"Found {len(highlights)} relevant highlights")
         return highlights
+        
+    except ValueError as e:
+        logger.error(f"Invalid question: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
     except Exception as e:
-        logger.error(f"Error processing question: {str(e)}", exc_info=True)
+        logger.error(f"Error processing question: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Error processing question: {str(e)}"
+            detail="Internal server error while processing question"
         ) 

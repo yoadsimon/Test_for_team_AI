@@ -11,6 +11,11 @@ RUN apt-get update && apt-get install -y \
 
 # Copy requirements first to leverage Docker cache
 COPY requirements.txt .
+
+# Install numpy first to ensure correct version
+RUN pip install --no-cache-dir "numpy>=1.24.3,<2.0.0"
+
+# Then install other requirements
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application

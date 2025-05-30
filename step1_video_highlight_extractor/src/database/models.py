@@ -54,4 +54,11 @@ class Highlight(Base):
     video: Mapped["Video"] = relationship("Video", back_populates="highlights")
 
     def __repr__(self) -> str:
-        return f"<Highlight(id={self.id}, video_id={self.video_id}, timestamp={self.timestamp})>" 
+        return f"<Highlight(id={self.id}, video_id={self.video_id}, timestamp={self.timestamp})>"
+    
+    def format_timestamp(self) -> str:
+        """Format the timestamp into a human-readable string."""
+        hours = int(self.timestamp // 3600)
+        minutes = int((self.timestamp % 3600) // 60)
+        seconds = self.timestamp % 60
+        return f"{hours:02d}:{minutes:02d}:{seconds:05.2f}" 

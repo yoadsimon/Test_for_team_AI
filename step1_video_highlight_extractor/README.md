@@ -1,70 +1,56 @@
-# Video Highlight Extractor
+# 🎥 Video Highlight Extractor
 
-Extracts highlights from videos using LLM and stores them in PostgreSQL with pgvector.
+AI-powered video processing system that extracts and stores meaningful highlights.
 
-## Features
+## ✨ Features
+- Processes MP4/MOV videos
+- Extracts visual scenes and audio
+- Uses LLM for highlight detection
+- Stores in PostgreSQL + pgvector
 
-- Video processing (.mp4, .mov)
-- Visual scene analysis
-- Audio transcription
-- LLM-based highlight extraction
-- PostgreSQL + pgvector storage
-- Docker containerization
+## 🚀 Quick Start
 
-## Prerequisites
-
-- Docker and Docker Compose
-- Python 3.8+
-- Google AI Studio API key
-
-## Setup
-
-1. Copy environment file:
+1. Set up environment:
    ```bash
    cp .env.example .env
+   # Add your Google AI Studio API key to .env
    ```
 
-2. Add your Google AI Studio API key to `.env`:
-   ```
-   GOOGLE_AI_STUDIO_API_KEY=your_key_here
-   ```
-
-## Usage
-
-### Using Docker (Recommended)
-
-1. Start services:
+2. Start services:
    ```bash
    docker compose up -d
    ```
 
-2. Run demo:
-   ```bash
-   ./run_demo.sh
-   ```
+## 📁 Project Structure
+```
+.
+├── src/              # Source code
+│   ├── processors/   # Video/audio processing
+│   ├── llm/         # LLM integration
+│   ├── database/    # Database models
+│   └── services/    # Business logic
+├── videos/          # Input videos
+└── processed_media/ # Generated files
+```
 
-### Local Development
+## 💾 Database Schema
+```sql
+-- Videos table
+CREATE TABLE videos (
+    id SERIAL PRIMARY KEY,
+    filename VARCHAR(255),
+    duration FLOAT
+);
 
-1. Create virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # or `venv\Scripts\activate` on Windows
-   ```
-
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Run migrations:
-   ```bash
-   alembic upgrade head
-   ```
-
-4. Start service:
-   ```bash
-   python src/main.py
-   ```
+-- Highlights table
+CREATE TABLE highlights (
+    id SERIAL PRIMARY KEY,
+    video_id INTEGER REFERENCES videos(id),
+    timestamp FLOAT,
+    description TEXT,
+    embedding vector(1536)
+);
+```
 
 ## Project Structure
 
@@ -76,41 +62,10 @@ Extracts highlights from videos using LLM and stores them in PostgreSQL with pgv
 │   ├── database/         # Database models and operations
 │   └── services/         # Business logic
 ├── videos/               # Input videos
-├── output/              # Processed outputs
+├── processed_media/              # Processed media files and metadata
 ├── migrations/          # Database migrations
 ├── tests/              # Test files
 └── docker-compose.yml  # Docker configuration
-```
-
-## Testing
-
-Run tests:
-```bash
-pytest tests/
-```
-
-## API
-
-The service exposes no external API endpoints as it's designed to process videos and store results in the database for use by the chat interface.
-
-## 📊 Database
-
-```sql
-CREATE TABLE videos (
-    id SERIAL PRIMARY KEY,
-    filename VARCHAR(255),
-    duration FLOAT,
-    created_at TIMESTAMP
-);
-
-CREATE TABLE highlights (
-    id SERIAL PRIMARY KEY,
-    video_id INTEGER REFERENCES videos(id),
-    timestamp FLOAT,
-    description TEXT,
-    embedding vector(1536),
-    summary TEXT
-);
 ```
 
 ## What I Could Have Improved:
