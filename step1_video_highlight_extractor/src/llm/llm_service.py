@@ -5,6 +5,9 @@ from dataclasses import dataclass
 from dotenv import load_dotenv
 import logging
 from pydantic import BaseModel, Field
+import numpy as np
+import cv2
+import tempfile
 
 # LangChain imports
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
@@ -12,6 +15,13 @@ from langchain.prompts import PromptTemplate
 from langchain.output_parsers import PydanticOutputParser
 from langchain.memory import ConversationBufferMemory
 from langchain_core.output_parsers import StrOutputParser
+
+# PIL imports with proper error handling
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
 
 
 @dataclass
@@ -29,15 +39,15 @@ class HighlightOutput(BaseModel):
     is_highlight: bool = Field(description="Whether this moment deserves to be a highlight")
     importance_score: int = Field(description="Importance score from 1-10")
     description: str = Field(description="Clear, engaging description of what's happening")
-    category: str = Field(description="Category: action, dialogue, scene_change, key_moment, or other")
+    category: str = Field(description="Category: action, dialogue, scene_change, key_moment, visual_action, or other")
     summary: str = Field(description="One-sentence summary of the significance")
 
 
 class LLMService:
-    """Enhanced LLM service using LangChain for intelligent highlight extraction."""
+    """Enhanced LLM service using LangChain for intelligent highlight extraction with vision capabilities."""
 
     def __init__(self):
-        """Initialize the enhanced LLM service with LangChain."""
+        """Initialize the enhanced LLM service with LangChain and vision capabilities."""
         # Load environment variables
         load_dotenv()
         
@@ -57,6 +67,9 @@ class LLMService:
                 temperature=0.7
             )
             
+            # Initialize Gemini Vision model for frame analysis
+            self.vision_model = genai.GenerativeModel('gemini-1.5-flash')
+            
             # Initialize the embedding model
             self.embedding_model = GoogleGenerativeAIEmbeddings(
                 model="models/embedding-001",
@@ -75,7 +88,7 @@ class LLMService:
 
             # Set up logging
             self.logger = logging.getLogger(__name__)
-            self.logger.info("Enhanced LLM service with LangChain initialized successfully")
+            self.logger.info("Enhanced LLM service with Vision and LangChain initialized successfully")
             
         except Exception as e:
             raise RuntimeError(f"Failed to initialize services: {str(e)}")
@@ -83,27 +96,35 @@ class LLMService:
     def _setup_prompts(self):
         """Set up structured prompts for different tasks."""
         
-        # Highlight filtering and generation prompt
+        # Enhanced highlight filtering and generation prompt with visual context
         self.highlight_prompt = PromptTemplate(
-            input_variables=["audio_text", "timestamp", "video_context"],
-            template="""You are an expert video content analyst. Analyze this moment from a video:
+            input_variables=["audio_text", "visual_description", "timestamp", "video_context"],
+            template="""You are an expert video content analyst. Analyze this moment from a video using BOTH audio and visual information:
 
 TIMESTAMP: {timestamp:.1f} seconds
 AUDIO: "{audio_text}"
+VISUAL: "{visual_description}"
 VIDEO CONTEXT: {video_context}
 
 Determine if this moment should be a highlight. Good highlights include:
 - Important dialogue or key information
-- Significant actions or events
+- Significant actions or events (even without sound)
 - Scene transitions or dramatic moments
 - Educational or informative content
 - Emotional or engaging moments
+- Visual effects or impressive cinematography
+- Action sequences or movement
+- Object interactions or demonstrations
+- Facial expressions showing strong emotions
+- Environmental changes or reveals
 
 Avoid highlighting:
-- Filler words or casual conversation
-- Long pauses or silence
-- Repetitive content
-- Low-value chatter
+- Static scenes with filler words
+- Long pauses with no visual interest
+- Repetitive content (audio + visual)
+- Low-value chatter with boring visuals
+
+Consider the combination of audio and visual elements to determine significance.
 
 {format_instructions}
 
@@ -120,7 +141,7 @@ Provide your analysis:""",
 
 Create a concise but informative summary that:
 1. Captures the main narrative or key points
-2. Highlights the most important moments
+2. Highlights the most important moments (both audio and visual)
 3. Explains the overall context and significance
 4. Uses engaging, natural language
 5. Is 2-3 sentences long
@@ -137,34 +158,102 @@ Summary:"""
         # Modern summary generation chain using pipe operator  
         self.summary_chain = self.summary_prompt | self.llm | StrOutputParser()
 
+    def _analyze_frame(self, frame: np.ndarray) -> str:
+        """
+        Analyze a video frame using Gemini Vision.
+        
+        Args:
+            frame: OpenCV frame (numpy array)
+            
+        Returns:
+            Description of what's happening in the frame
+        """
+        try:
+            if not PIL_AVAILABLE:
+                return "PIL not available for image processing"
+            
+            # Convert OpenCV frame (BGR) to RGB and then to PIL Image
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            
+            # Save frame to temporary file instead of using PIL directly
+            with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
+                temp_path = temp_file.name
+                
+            # Save the frame using OpenCV
+            cv2.imwrite(temp_path, frame)
+            
+            try:
+                # Load with PIL for Gemini Vision
+                pil_image = Image.open(temp_path)
+                
+                # Resize image if too large (Gemini has size limits)
+                max_size = 1024
+                if pil_image.width > max_size or pil_image.height > max_size:
+                    pil_image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+                
+                # Analyze with Gemini Vision
+                prompt = """Describe what you see in this video frame in 1-2 sentences. Focus on:
+- Main subjects/people and what they're doing
+- Important objects or actions
+- Scene setting or environment
+- Any significant visual elements
+- Emotional expressions or body language
+- Movement or transitions
+
+Be concise but descriptive."""
+                
+                response = self.vision_model.generate_content([prompt, pil_image])
+                return response.text.strip()
+                
+            finally:
+                # Clean up temporary file
+                try:
+                    os.unlink(temp_path)
+                except:
+                    pass
+            
+        except Exception as e:
+            self.logger.error(f"Error analyzing frame: {e}")
+            return "Unable to analyze visual content"
+
     def generate_highlight_description(
         self,
         audio_context: str,
         timestamp: float,
-        video_context: str = "General video content"
+        video_context: str = "General video content",
+        frame: Optional[np.ndarray] = None
     ) -> Optional[HighlightDescription]:
         """
-        Generate a highlight description using smart filtering and structured output.
+        Generate a highlight description using smart filtering with both audio and visual analysis.
         
         Args:
             audio_context: Transcribed audio text
             timestamp: Timestamp in seconds
             video_context: Brief context about the video content
+            frame: Optional video frame for visual analysis
             
         Returns:
             HighlightDescription if moment is significant, None otherwise
         """
         try:
-            # Use modern LangChain Runnable chain - this directly returns a HighlightOutput object
+            # Analyze visual content if frame is provided
+            if frame is not None:
+                visual_description = self._analyze_frame(frame)
+                self.logger.info(f"Visual analysis at {timestamp:.1f}s: {visual_description[:100]}...")
+            else:
+                visual_description = "No visual information available"
+            
+            # Use enhanced LangChain chain with both audio and visual context
             result = self.highlight_chain.invoke({
                 "audio_text": audio_context,
+                "visual_description": visual_description,
                 "timestamp": timestamp,
                 "video_context": video_context
             })
             
-            # The modern chain with output_parser directly returns a HighlightOutput object
             # Only create highlight if the AI determines it's significant
             if result.is_highlight and result.importance_score >= 6:  # Threshold for quality
+                self.logger.info(f"✨ Highlight created at {timestamp:.1f}s - Score: {result.importance_score}")
                 return HighlightDescription(
                     timestamp=timestamp,
                     description=result.description,
@@ -172,6 +261,8 @@ Summary:"""
                     importance_score=result.importance_score,
                     category=result.category
                 )
+            else:
+                self.logger.debug(f"Segment at {timestamp:.1f}s filtered out - Score: {result.importance_score}")
             
             return None  # Not significant enough to be a highlight
             

@@ -15,6 +15,7 @@ flake8==6.1.0
 faster-whisper==0.10.0
 librosa==0.10.1
 soundfile==0.12.1
+Pillow>=9.5.0
 # Enhanced LangChain integration - compatible versions
 langchain-google-genai==0.0.5
 langchain-core==0.1.17
