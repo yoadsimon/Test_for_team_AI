@@ -70,9 +70,9 @@ logs/
 step1_video_highlight_extractor/processed_media/
 step1_video_highlight_extractor/output/
 
-# Ignore video files
-step1_video_highlight_extractor/videos/*.mov
-step1_video_highlight_extractor/videos/*.MOV
+# Ignore video files (commented out for Git LFS)
+# step1_video_highlight_extractor/videos/*.mov
+# step1_video_highlight_extractor/videos/*.MOV
 step1_video_highlight_extractor/videos/*.mp4
 step1_video_highlight_extractor/videos/*.MP4
 step1_video_highlight_extractor/videos/*.wav
