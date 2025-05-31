@@ -87,7 +87,8 @@ class HighlightService:
             # Process segments with smart filtering
             highlights = self._process_segments_with_smart_filtering(
                 meaningful_segments, 
-                video_context
+                video_context,
+                video_path
             )
             
             if not highlights:
@@ -168,19 +169,21 @@ class HighlightService:
     def _process_segments_with_smart_filtering(
         self, 
         segments: List[Dict[str, Any]], 
-        video_context: str
+        video_context: str,
+        video_path: str  # Add video_path parameter for frame extraction
     ) -> List[HighlightDescription]:
         """
-        Process segments using LLM smart filtering to generate only quality highlights.
+        Process segments using LLM smart filtering with both audio and visual analysis.
         
         Args:
             segments: List of meaningful segments
             video_context: Context for the video
+            video_path: Path to the video file for frame extraction
             
         Returns:
             List of quality highlights
         """
-        self.logger.info(f"🤖 Processing {len(segments)} segments with AI filtering...")
+        self.logger.info(f"🤖 Processing {len(segments)} segments with AI filtering (audio + video)...")
         
         def process_segment(segment: Dict[str, Any]) -> Optional[HighlightDescription]:
             """Process a single segment and return highlight if significant."""
@@ -188,11 +191,19 @@ class HighlightService:
                 # Calculate target timestamp (middle of segment)
                 target_time = segment['start_time'] + (segment['duration'] / 2)
                 
-                # Use LLM to determine if this should be a highlight
+                # Extract frame at target timestamp for visual analysis
+                frame = self.video_processor.get_frame_at_timestamp(video_path, target_time)
+                if frame is not None:
+                    self.logger.debug(f"🖼️ Extracted frame at {target_time:.1f}s for visual analysis")
+                else:
+                    self.logger.warning(f"⚠️ Failed to extract frame at {target_time:.1f}s")
+                
+                # Use LLM with both audio and visual context
                 highlight = self.llm_service.generate_highlight_description(
                     audio_context=segment['text'],
                     timestamp=target_time,
-                    video_context=video_context
+                    video_context=video_context,
+                    frame=frame  # Pass the extracted frame
                 )
                 
                 return highlight  # Will be None if not significant enough
@@ -205,7 +216,7 @@ class HighlightService:
         highlights = []
         total_segments = len(segments)
         
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:  # Reduced workers for vision processing
             # Submit all tasks
             futures = {
                 executor.submit(process_segment, segment): i 
@@ -220,7 +231,7 @@ class HighlightService:
                     if result is not None:
                         highlights.append(result)
                     
-                    if completed_count % 10 == 0 or completed_count == total_segments:
+                    if completed_count % 5 == 0 or completed_count == total_segments:  # More frequent updates for vision processing
                         self.logger.info(
                             f"📈 Progress: {completed_count}/{total_segments} segments processed "
                             f"({completed_count/total_segments*100:.1f}%) - "
@@ -232,7 +243,7 @@ class HighlightService:
         # Sort highlights by timestamp
         highlights.sort(key=lambda h: h.timestamp)
         
-        self.logger.info(f"✨ Generated {len(highlights)} quality highlights from {total_segments} segments")
+        self.logger.info(f"✨ Generated {len(highlights)} quality highlights from {total_segments} segments (with visual analysis)")
         return highlights
 
     def _batch_save_highlights(self, highlights: List[HighlightDescription], video_id: int):
