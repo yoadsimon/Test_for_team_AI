@@ -138,15 +138,18 @@ class HighlightService:
         def process_segment(segment: Dict[str, Any]) -> Optional[HighlightDescription]:
             """Process a single segment and return highlight if significant."""
             try:
-                target_time = segment['start_time'] + (segment['duration'] / 2)
+                # Use middle of segment for frame extraction (better visual representation)
+                frame_time = segment['start_time'] + (segment['duration'] / 2)
+                # Use start of segment as the timestamp (where user should jump to)
+                highlight_timestamp = segment['start_time']
                 
-                frame = self.video_processor.get_frame_at_timestamp(video_path, target_time)
+                frame = self.video_processor.get_frame_at_timestamp(video_path, frame_time)
                 if frame is None:
-                    self.logger.warning(f"Failed to extract frame at {target_time:.1f}s")
+                    self.logger.warning(f"Failed to extract frame at {frame_time:.1f}s")
                 
                 highlight = self.llm_service.generate_highlight_description(
                     audio_context=segment['text'],
-                    timestamp=target_time,
+                    timestamp=highlight_timestamp,
                     video_context=video_context,
                     frame=frame
                 )

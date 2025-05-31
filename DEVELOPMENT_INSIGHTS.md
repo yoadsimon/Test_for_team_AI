@@ -1,7 +1,7 @@
 # Development Insights
 
 ## Initial Requirements & Architecture Planning
-Before building anything, it’s important to clearly understand the customer’s needs and KPIs.
+Before building anything, it's important to clearly understand the customer's needs and KPIs.
 Example:
 
 ### Cost vs. Quality Trade-offs
@@ -56,4 +56,20 @@ Example:
 - Created shared external network (`video-network`) for cross-container communication
 - Configured both compose files to use same network with service name resolution
 - Added connection health checks and startup orchestration
+
+### Audio Transcription Accuracy Issues
+- Audio-to-text model (Whisper) not 100% accurate, affecting highlight quality
+- Transcription errors lead to poor semantic search results in Step 2
+- **Investigation needed**:
+  - Evaluate different Whisper model sizes (tiny, base, small, medium, large)
+  - Consider switching to cloud-based services (OpenAI Whisper API, Google Speech-to-Text)
+  - Implement confidence scoring to filter low-quality transcriptions
+  - Add manual transcription review workflow for critical content
+
+### Timestamp Calculation and Display Problems
+- **Multiple timestamp bugs discovered and fixed**:
+  - Frontend showing "1/1/1970" due to treating video seconds as Unix timestamps
+  - Timestamps using segment middle instead of start (bad for navigation)
+  - Confusing formats like "0:01.5" changed to "1.5 seconds into the video"
+- **Solutions**: Fixed data types, used segment start for timestamps, improved display formatting.
 
