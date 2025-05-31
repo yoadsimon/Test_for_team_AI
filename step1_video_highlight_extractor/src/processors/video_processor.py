@@ -21,31 +21,16 @@ class FrameInfo:
 
 
 class VideoProcessor:
-    """Simplified video processor focusing on essential functionality."""
+    """Video processor focusing on essential functionality."""
 
     def __init__(self, min_frame_interval: float = 1.0):
-        """
-        Initialize the video processor.
-        
-        Args:
-            min_frame_interval: Minimum time interval between frames in seconds
-        """
         self.min_frame_interval = min_frame_interval
         
-        # Create output directories
         self.output_dir = Path("processed_media")
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def get_video_info(self, video_path: str) -> Tuple[float, int, int, float]:
-        """
-        Extract basic video information.
-        
-        Args:
-            video_path: Path to the video file
-            
-        Returns:
-            Tuple of (duration, width, height, fps)
-        """
+        """Extract basic video information."""
         video = cv2.VideoCapture(video_path)
         if not video.isOpened():
             raise ValueError(f"Could not open video file: {video_path}")
@@ -64,16 +49,7 @@ class VideoProcessor:
     def extract_frames(
         self, video_path: str, max_frames: Optional[int] = None
     ) -> Generator[FrameInfo, None, None]:
-        """
-        Extract frames from a video file at regular intervals.
-        
-        Args:
-            video_path: Path to the video file
-            max_frames: Maximum number of frames to extract (None for all)
-            
-        Yields:
-            FrameInfo objects containing frame data and metadata
-        """
+        """Extract frames from a video file at regular intervals."""
         video = cv2.VideoCapture(video_path)
         if not video.isOpened():
             raise ValueError(f"Could not open video file: {video_path}")
@@ -82,7 +58,6 @@ class VideoProcessor:
             fps = video.get(cv2.CAP_PROP_FPS)
             frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
             
-            # Calculate frame interval based on min_frame_interval
             frame_interval = max(1, int(fps * self.min_frame_interval))
             
             frame_number = 0
@@ -100,7 +75,7 @@ class VideoProcessor:
                         frame_number=frame_number,
                         timestamp=timestamp,
                         frame=frame.copy(),
-                        is_key_frame=False  # Simplified - no complex key frame detection
+                        is_key_frame=False
                     )
                     
                     frames_extracted += 1
@@ -113,20 +88,10 @@ class VideoProcessor:
             video.release()
 
     def extract_audio(self, video_path: str, output_path: Optional[str] = None) -> str:
-        """
-        Extract audio from a video file.
-        
-        Args:
-            video_path: Path to the video file
-            output_path: Path to save the audio file (if None, creates temp file)
-            
-        Returns:
-            Path to the extracted audio file
-        """
+        """Extract audio from a video file."""
         if output_path is None:
-            # Create a temporary file
             temp_fd, output_path = tempfile.mkstemp(suffix='.wav')
-            os.close(temp_fd)  # Close the file descriptor, but keep the path
+            os.close(temp_fd)
         
         try:
             video = VideoFileClip(video_path)
@@ -138,16 +103,7 @@ class VideoProcessor:
             raise
 
     def get_frame_at_timestamp(self, video_path: str, timestamp: float) -> Optional[np.ndarray]:
-        """
-        Extract a single frame at a specific timestamp.
-        
-        Args:
-            video_path: Path to the video file
-            timestamp: Timestamp in seconds
-            
-        Returns:
-            Frame as numpy array or None if failed
-        """
+        """Extract a single frame at a specific timestamp."""
         video = cv2.VideoCapture(video_path)
         if not video.isOpened():
             return None

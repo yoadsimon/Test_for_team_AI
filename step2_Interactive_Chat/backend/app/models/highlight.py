@@ -19,7 +19,6 @@ class Video(Base):
     summary = Column(Text, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
-    # Relationship with highlights
     highlights = relationship("Highlight", back_populates="video", cascade="all, delete-orphan")
 
 class Highlight(Base):
@@ -36,7 +35,6 @@ class Highlight(Base):
         DateTime, nullable=False, default=datetime.utcnow
     )
 
-    # Relationship with video
     video: Mapped["Video"] = relationship("Video", back_populates="highlights")
 
     def __repr__(self) -> str:

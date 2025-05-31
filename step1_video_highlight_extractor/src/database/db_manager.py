@@ -1,6 +1,7 @@
 import os
 from contextlib import contextmanager
 from typing import Generator, List, Optional
+import logging
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker, joinedload
@@ -24,6 +25,7 @@ class DatabaseManager:
         self.SessionLocal = sessionmaker(
             autocommit=False, autoflush=False, bind=self.engine
         )
+        self.logger = logging.getLogger(__name__)
 
     def _get_database_url(self) -> str:
         """Get the database URL from environment variables."""
@@ -36,50 +38,41 @@ class DatabaseManager:
         return f"postgresql://{user}:{password}@{host}:{port}/{db_name}"
 
     def ensure_tables_exist(self) -> None:
-        """
-        Ensure database tables exist without dropping existing data.
-        This is safer than create_tables() as it preserves existing data.
-        """
+        """Ensure database tables exist without dropping existing data."""
         try:
-            # Check if tables exist
             with self.get_session() as session:
                 try:
-                    # Try to query the highlights table to see if it exists and has data
                     result = session.execute(text("SELECT COUNT(*) FROM highlights"))
                     count = result.scalar()
-                    print(f"✅ Database ready with {count} existing highlights")
+                    self.logger.info(f"Database ready with {count} existing highlights")
                     return
                 except Exception:
-                    # Table doesn't exist or other error, proceed with creation
-                    print("ℹ️  Tables don't exist, creating them...")
+                    self.logger.info("Tables don't exist, creating them...")
                     pass
             
-            # Create extension in a separate transaction if needed
-            print("🔧 Ensuring pgvector extension...")
+            self.logger.info("Ensuring pgvector extension...")
             try:
                 with self.get_session() as session:
                     session.execute(text('CREATE EXTENSION IF NOT EXISTS vector;'))
                     session.commit()
-                print("✅ pgvector extension ready")
+                self.logger.info("pgvector extension ready")
             except Exception as e:
-                print(f"ℹ️  pgvector extension might already exist: {e}")
+                self.logger.info(f"pgvector extension might already exist: {e}")
                 
-            # Create tables if they don't exist
-            print("🏗️ Creating tables if needed...")
+            self.logger.info("Creating tables if needed...")
             Base.metadata.create_all(bind=self.engine)
-            print("✅ Tables ready")
+            self.logger.info("Tables ready")
             
         except Exception as e:
-            print(f"❌ Database error: {e}")
+            self.logger.error(f"Database error: {e}")
             raise
 
     def create_tables(self) -> None:
         """Create database tables with proper transaction handling."""
         try:
             with self.get_session() as session:
-                print("🗑️ Dropping existing tables...")
+                self.logger.info("Dropping existing tables...")
                 try:
-                    # Try to terminate idle connections first  
                     session.execute(text("""
                         SELECT pg_terminate_backend(pid) 
                         FROM pg_stat_activity 
@@ -88,31 +81,29 @@ class DatabaseManager:
                         AND state = 'idle'
                     """))
                     session.commit()
-                    print("✅ Terminated idle connections")
+                    self.logger.info("Terminated idle connections")
                 except Exception as e:
-                    print(f"ℹ️  Could not terminate connections: {e}")
-                    session.rollback()  # Rollback failed transaction
+                    self.logger.warning(f"Could not terminate connections: {e}")
+                    session.rollback()
                 
                 Base.metadata.drop_all(bind=self.engine)
-                print("✅ Tables dropped")
+                self.logger.info("Tables dropped")
                 
-            # Create extension in a separate transaction
-            print("🔧 Creating pgvector extension...")
+            self.logger.info("Creating pgvector extension...")
             try:
                 with self.get_session() as session:
                     session.execute(text('CREATE EXTENSION IF NOT EXISTS vector;'))
                     session.commit()
-                print("✅ pgvector extension ready")
+                self.logger.info("pgvector extension ready")
             except Exception as e:
-                print(f"ℹ️  pgvector extension might already exist: {e}")
+                self.logger.info(f"pgvector extension might already exist: {e}")
                 
-            # Create tables in another separate transaction  
-            print("🏗️ Creating new tables...")
+            self.logger.info("Creating new tables...")
             Base.metadata.create_all(bind=self.engine)
-            print("✅ Tables created successfully")
+            self.logger.info("Tables created successfully")
             
         except Exception as e:
-            print(f"❌ Database error: {e}")
+            self.logger.error(f"Database error: {e}")
             raise
 
     def ensure_pgvector_extension(self) -> None:
@@ -179,7 +170,7 @@ class DatabaseManager:
     def find_similar_highlights(
         self, embedding: List[float], limit: int = 5
     ) -> List[Highlight]:
-        """Find similar highlights using vector similarity search (ORM)."""
+        """Find similar highlights using vector similarity search."""
         with self.get_session() as session:
             return (
                 session.query(Highlight)
@@ -217,25 +208,15 @@ class DatabaseManager:
             return False
 
     def batch_save_highlights(self, highlights: List[Highlight]) -> List[Highlight]:
-        """
-        Save multiple highlights to the database in a single transaction for better performance.
-        
-        Args:
-            highlights: List of Highlight objects to save
-            
-        Returns:
-            List of saved highlights with IDs populated
-        """
+        """Save multiple highlights efficiently."""
         if not highlights:
             return []
         
         with self.get_session() as session:
             try:
-                # Add all highlights to the session
                 session.add_all(highlights)
                 session.commit()
                 
-                # Refresh all objects to get their IDs
                 for highlight in highlights:
                     session.refresh(highlight)
                 
@@ -243,61 +224,57 @@ class DatabaseManager:
                 
             except Exception as e:
                 session.rollback()
-                raise e
+                self.logger.error(f"Batch save failed: {e}")
+                
+                saved_highlights = []
+                for highlight in highlights:
+                    try:
+                        session.add(highlight)
+                        session.commit()
+                        session.refresh(highlight)
+                        saved_highlights.append(highlight)
+                    except Exception as e:
+                        session.rollback()
+                        self.logger.error(f"Failed to save individual highlight: {e}")
+                        continue
+                
+                return saved_highlights
 
     def get_videos_summary(self) -> List[dict]:
-        """
-        Get a summary of all videos with highlight counts.
-        
-        Returns:
-            List of dictionaries with video info and highlight counts
-        """
+        """Get a summary of all videos and their highlight counts."""
         with self.get_session() as session:
-            # Use raw SQL for efficient counting
             result = session.execute(text("""
                 SELECT 
                     v.id,
                     v.filename,
                     v.duration,
-                    v.summary,
                     v.created_at,
+                    v.summary,
                     COUNT(h.id) as highlight_count
                 FROM videos v
                 LEFT JOIN highlights h ON v.id = h.video_id
-                GROUP BY v.id, v.filename, v.duration, v.summary, v.created_at
+                GROUP BY v.id, v.filename, v.duration, v.created_at, v.summary
                 ORDER BY v.created_at DESC
             """))
             
             return [
                 {
-                    "id": row[0],
-                    "filename": row[1],
-                    "duration": row[2],
-                    "summary": row[3],
-                    "created_at": row[4],
-                    "highlight_count": row[5]
+                    'id': row[0],
+                    'filename': row[1],
+                    'duration': row[2],
+                    'created_at': row[3],
+                    'summary': row[4],
+                    'highlight_count': row[5]
                 }
                 for row in result
             ]
 
     def search_highlights_by_text(self, search_text: str, limit: int = 10) -> List[Highlight]:
-        """
-        Search highlights by text content (simple text search).
-        
-        Args:
-            search_text: Text to search for
-            limit: Maximum number of results
-            
-        Returns:
-            List of matching highlights
-        """
+        """Search highlights by text content."""
         with self.get_session() as session:
             return (
                 session.query(Highlight)
-                .filter(
-                    Highlight.description.ilike(f"%{search_text}%") |
-                    Highlight.summary.ilike(f"%{search_text}%")
-                )
+                .filter(Highlight.description.ilike(f"%{search_text}%"))
                 .options(joinedload(Highlight.video))
                 .order_by(Highlight.timestamp)
                 .limit(limit)
