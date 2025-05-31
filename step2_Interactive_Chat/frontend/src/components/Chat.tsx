@@ -14,7 +14,7 @@ import axios from 'axios';
 
 interface Highlight {
   id: string;
-  text: string;
+  description: string;
   timestamp: string;
   similarity_score: number;
 }
@@ -82,7 +82,7 @@ const Chat: React.FC = () => {
           {highlights.map((highlight) => (
             <ListItem key={highlight.id} divider>
               <ListItemText
-                primary={highlight.text}
+                primary={highlight.description}
                 secondary={`Timestamp: ${new Date(highlight.timestamp).toLocaleString()} (Similarity: ${(highlight.similarity_score * 100).toFixed(1)}%)`}
               />
             </ListItem>
