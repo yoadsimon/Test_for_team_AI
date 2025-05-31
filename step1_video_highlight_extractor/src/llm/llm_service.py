@@ -44,10 +44,10 @@ class HighlightOutput(BaseModel):
 
 
 class LLMService:
-    """Enhanced LLM service using LangChain for intelligent highlight extraction with vision capabilities."""
+    """LLM service using LangChain for intelligent highlight extraction with vision capabilities."""
 
     def __init__(self):
-        """Initialize the enhanced LLM service with LangChain and vision capabilities."""
+        """Initialize the LLM service with LangChain and vision capabilities."""
         # Load environment variables
         load_dotenv()
         
@@ -88,7 +88,7 @@ class LLMService:
 
             # Set up logging
             self.logger = logging.getLogger(__name__)
-            self.logger.info("Enhanced LLM service with Vision and LangChain initialized successfully")
+            self.logger.info("LLM service with Vision and LangChain initialized successfully")
             
         except Exception as e:
             raise RuntimeError(f"Failed to initialize services: {str(e)}")
@@ -159,15 +159,7 @@ Summary:"""
         self.summary_chain = self.summary_prompt | self.llm | StrOutputParser()
 
     def _analyze_frame(self, frame: np.ndarray) -> str:
-        """
-        Analyze a video frame using Gemini Vision.
-        
-        Args:
-            frame: OpenCV frame (numpy array)
-            
-        Returns:
-            Description of what's happening in the frame
-        """
+        """Analyze a video frame using Gemini Vision."""
         try:
             if not PIL_AVAILABLE:
                 return "PIL not available for image processing"
@@ -200,20 +192,18 @@ Summary:"""
 - Emotional expressions or body language
 - Movement or transitions
 
-Be concise but descriptive."""
+Keep it concise and factual."""
                 
                 response = self.vision_model.generate_content([prompt, pil_image])
                 return response.text.strip()
                 
             finally:
                 # Clean up temporary file
-                try:
-                    os.unlink(temp_path)
-                except:
-                    pass
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
             
         except Exception as e:
-            self.logger.error(f"Error analyzing frame: {e}")
+            self.logger.warning(f"Frame analysis failed: {e}")
             return "Unable to analyze visual content"
 
     def generate_highlight_description(
@@ -223,27 +213,12 @@ Be concise but descriptive."""
         video_context: str = "General video content",
         frame: Optional[np.ndarray] = None
     ) -> Optional[HighlightDescription]:
-        """
-        Generate a highlight description using smart filtering with both audio and visual analysis.
-        
-        Args:
-            audio_context: Transcribed audio text
-            timestamp: Timestamp in seconds
-            video_context: Brief context about the video content
-            frame: Optional video frame for visual analysis
-            
-        Returns:
-            HighlightDescription if moment is significant, None otherwise
-        """
+        """Generate a highlight description using enhanced analysis with visual context."""
         try:
-            # Analyze visual content if frame is provided
+            visual_description = "No visual analysis available"
             if frame is not None:
                 visual_description = self._analyze_frame(frame)
-                self.logger.info(f"Visual analysis at {timestamp:.1f}s: {visual_description[:100]}...")
-            else:
-                visual_description = "No visual information available"
             
-            # Use enhanced LangChain chain with both audio and visual context
             result = self.highlight_chain.invoke({
                 "audio_text": audio_context,
                 "visual_description": visual_description,
@@ -251,9 +226,7 @@ Be concise but descriptive."""
                 "video_context": video_context
             })
             
-            # Only create highlight if the AI determines it's significant
-            if result.is_highlight and result.importance_score >= 6:  # Threshold for quality
-                self.logger.info(f"✨ Highlight created at {timestamp:.1f}s - Score: {result.importance_score}")
+            if result.is_highlight and result.importance_score >= 6:
                 return HighlightDescription(
                     timestamp=timestamp,
                     description=result.description,
@@ -261,82 +234,50 @@ Be concise but descriptive."""
                     importance_score=result.importance_score,
                     category=result.category
                 )
-            else:
-                self.logger.debug(f"Segment at {timestamp:.1f}s filtered out - Score: {result.importance_score}")
             
-            return None  # Not significant enough to be a highlight
+            return None
             
         except Exception as e:
-            self.logger.error(f"Error generating highlight description: {e}")
-            # Fallback to simple description
-            return HighlightDescription(
-                timestamp=timestamp,
-                description=f"Video moment with audio: {audio_context[:100]}...",
-                summary="Video content",
-                importance_score=5
-            )
+            self.logger.error(f"Highlight generation failed for timestamp {timestamp}: {e}")
+            return None
 
     def generate_highlight_summary(
         self, highlights: List[HighlightDescription]
     ) -> str:
-        """
-        Generate a summary of multiple highlights using LangChain.
-        
-        Args:
-            highlights: List of highlight descriptions
-            
-        Returns:
-            Summary of the highlights
-        """
+        """Generate a summary of all highlights for a video."""
         if not highlights:
             return "No significant highlights found in this video."
-
-        # Prepare highlights for summary
-        highlights_text = "\n".join([
-            f"• At {h.timestamp:.1f}s: {h.description} (Score: {h.importance_score or 'N/A'})"
-            for h in highlights
-        ])
-
+        
         try:
-            # Use modern LangChain Runnable chain - this directly returns a string
+            highlights_text = "\n".join([
+                f"- {h.timestamp:.1f}s: {h.description} ({h.category})"
+                for h in highlights[:10]
+            ])
+            
+            if len(highlights) > 10:
+                highlights_text += f"\n... and {len(highlights) - 10} more highlights"
+            
             summary = self.summary_chain.invoke({"highlights": highlights_text})
             return summary.strip()
+            
         except Exception as e:
-            self.logger.error(f"Error generating summary: {e}")
-            return f"Video contains {len(highlights)} key highlights covering various important moments."
+            self.logger.error(f"Summary generation failed: {e}")
+            return f"Video contains {len(highlights)} notable highlights covering various topics and moments."
 
     def generate_embedding(self, text: str) -> List[float]:
-        """
-        Generate embedding for text using Google's embedding model.
-        
-        Args:
-            text: Text to generate embedding for
-            
-        Returns:
-            List of embedding values
-        """
+        """Generate embedding for a text."""
         try:
             embedding = self.embedding_model.embed_query(text)
             return embedding
         except Exception as e:
-            self.logger.error(f"Error generating embedding: {e}")
-            # Return a zero vector as fallback
-            return [0.0] * 768  # Standard embedding dimension
+            self.logger.error(f"Embedding generation failed: {e}")
+            return [0.0] * 768
 
     def batch_generate_embeddings(self, texts: List[str]) -> List[List[float]]:
-        """
-        Generate embeddings for multiple texts efficiently.
-        
-        Args:
-            texts: List of texts to generate embeddings for
-            
-        Returns:
-            List of embedding vectors
-        """
+        """Generate embeddings for multiple texts efficiently."""
         try:
             embeddings = self.embedding_model.embed_documents(texts)
             return embeddings
         except Exception as e:
-            self.logger.error(f"Error generating batch embeddings: {e}")
-            # Return zero vectors as fallback
+            self.logger.error(f"Batch embedding generation failed: {e}")
             return [[0.0] * 768] * len(texts) 

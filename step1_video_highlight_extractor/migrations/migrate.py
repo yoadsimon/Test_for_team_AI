@@ -1,6 +1,7 @@
 """Database migration script."""
 import os
 import sys
+import logging
 from pathlib import Path
 
 # Add project root to Python path
@@ -13,6 +14,9 @@ from sqlalchemy.orm import sessionmaker
 
 # Import all migrations using absolute imports
 from migrations.initial import upgrade as initial_migration
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def run_migrations():
     """Run all database migrations."""
@@ -34,9 +38,9 @@ def run_migrations():
     ]
     
     for migration in migrations:
-        print(f"Running migration: {migration.__name__}")
+        logger.info(f"Running migration: {migration.__name__}")
         migration(engine)
-        print("Migration completed successfully")
+        logger.info("Migration completed successfully")
 
 if __name__ == '__main__':
     run_migrations() 

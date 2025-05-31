@@ -25,17 +25,7 @@ class AudioProcessor:
     def extract_audio_segment(
         self, audio_path: str, start_time: float, end_time: float
     ) -> str:
-        """
-        Extract a segment of audio between start_time and end_time.
-        
-        Args:
-            audio_path: Path to the audio file
-            start_time: Start time in seconds
-            end_time: End time in seconds
-            
-        Returns:
-            Path to the extracted audio segment
-        """
+        """Extract a segment of audio between start_time and end_time."""
         # Load audio
         y, sr = librosa.load(audio_path)
         
@@ -55,16 +45,7 @@ class AudioProcessor:
     def transcribe_audio(
         self, audio_path: str, segment_duration: float = 30.0
     ) -> List[Tuple[float, float, str]]:
-        """
-        Transcribe audio file to text using Whisper.
-        
-        Args:
-            audio_path: Path to the audio file
-            segment_duration: Duration of each segment in seconds (not used with Whisper)
-            
-        Returns:
-            List of tuples containing (start_time, end_time, transcription)
-        """
+        """Transcribe audio file to text using Whisper."""
         # Transcribe using whisper
         segments, info = self.whisper.transcribe(
             audio_path,
@@ -84,16 +65,7 @@ class AudioProcessor:
         return transcriptions
 
     def find_speech_segments(self, audio_path: str) -> List[Tuple[float, float]]:
-        """
-        Find segments containing speech in an audio file.
-        Uses librosa for more accurate speech detection.
-        
-        Args:
-            audio_path: Path to the audio file
-            
-        Returns:
-            List of (start_time, end_time) tuples for speech segments
-        """
+        """Find segments containing speech in an audio file."""
         # Load audio file
         y, sr = librosa.load(audio_path)
         
@@ -140,17 +112,7 @@ class AudioProcessor:
         return segments
 
     def transcribe_segment(self, audio_path: str, start_time: float, end_time: float) -> str:
-        """
-        Transcribe a segment of audio between start_time and end_time.
-        
-        Args:
-            audio_path: Path to the audio file
-            start_time: Start time in seconds
-            end_time: End time in seconds
-            
-        Returns:
-            Transcribed text
-        """
+        """Transcribe a segment of audio between start_time and end_time."""
         # Extract the segment
         segment_path = self.extract_audio_segment(audio_path, start_time, end_time)
         
@@ -172,17 +134,7 @@ class AudioProcessor:
                 os.remove(segment_path)
 
     def get_audio_energy(self, audio_path: str, start_time: float, end_time: float) -> float:
-        """
-        Calculate the average energy/volume in an audio segment.
-        
-        Args:
-            audio_path: Path to the audio file
-            start_time: Start time in seconds
-            end_time: End time in seconds
-            
-        Returns:
-            Average energy as a float
-        """
+        """Calculate the average energy/volume in an audio segment."""
         # Load audio segment
         y, sr = librosa.load(audio_path)
         

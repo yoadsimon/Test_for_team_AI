@@ -1,8 +1,11 @@
 from datetime import datetime, timedelta
+import logging
 from sentence_transformers import SentenceTransformer
 from app.database.session import SessionLocal
 from app.models.highlight import Highlight
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 def init_db():
     db = SessionLocal()
@@ -25,7 +28,7 @@ def init_db():
     try:
         # Check if we already have data
         if db.query(Highlight).first() is not None:
-            print("Database already has data, skipping initialization")
+            logger.info("Database already has data, skipping initialization")
             return
 
         # Create highlights with timestamps and embeddings
@@ -44,10 +47,10 @@ def init_db():
             db.add(highlight)
         
         db.commit()
-        print("Successfully initialized database with sample highlights")
+        logger.info("Successfully initialized database with sample highlights")
         
     except Exception as e:
-        print(f"Error initializing database: {e}")
+        logger.error(f"Error initializing database: {e}")
         db.rollback()
     finally:
         db.close()

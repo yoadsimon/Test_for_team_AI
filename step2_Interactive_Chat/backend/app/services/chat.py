@@ -11,18 +11,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 class ChatService:
-    """
-    Service for handling chat interactions with video highlights.
-    Uses semantic search to find relevant highlights based on user questions.
-    """
+    """Service for handling chat interactions with video highlights using semantic search."""
     
     def __init__(self, db: Session) -> None:
-        """
-        Initialize the chat service.
-        
-        Args:
-            db: Database session
-        """
         self.db = db
         try:
             self.model = GoogleGenerativeAIEmbeddings(
@@ -35,25 +26,10 @@ class ChatService:
             raise
 
     def get_relevant_highlights(self, question: str, limit: int = 5) -> List[Dict[str, Any]]:
-        """
-        Find relevant highlights based on semantic similarity to the question using pgvector.
-        
-        Args:
-            question: User's question text
-            limit: Maximum number of highlights to return
-            
-        Returns:
-            List of highlight dictionaries with similarity scores
-            
-        Raises:
-            ValueError: If there's an error processing the question
-        """
+        """Find relevant highlights based on semantic similarity to the question using pgvector."""
         try:
-            # Generate question embedding
             question_embedding = self.model.embed_query(question)
             
-            # Use pgvector's cosine distance operator (<=>) for similarity search
-            # The cosine distance is converted to a similarity score (1 - distance)
             highlights = (
                 self.db.query(
                     Highlight,
@@ -70,7 +46,6 @@ class ChatService:
                 logger.warning("No highlights found in database")
                 return []
             
-            # Convert to response format
             results = [
                 {
                     "id": highlight.id,

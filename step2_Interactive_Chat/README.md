@@ -1,14 +1,14 @@
-# 💬 Interactive Video Chat
+# Interactive Video Chat
 
 Chat interface for querying video highlights using natural language.
 
-## ✨ Features
+## Features
 - Natural language queries
 - Semantic search
 - React frontend
 - FastAPI backend
 
-## 🚀 Quick Start
+## Quick Start
 
 1. Start services:
    ```bash
@@ -19,7 +19,7 @@ Chat interface for querying video highlights using natural language.
    - Web UI: http://localhost:3000
    - API Docs: http://localhost:8000/docs
 
-## 📁 Project Structure
+## Project Structure
 ```
 .
 ├── frontend/        # React application

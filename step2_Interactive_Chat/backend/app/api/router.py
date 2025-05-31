@@ -7,7 +7,6 @@ from app.database.session import get_db
 from app.services.chat import ChatService
 from app.schemas.chat import QuestionRequest, HighlightResponse
 
-# Configure logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
@@ -24,19 +23,7 @@ async def ask_question(
     question: QuestionRequest,
     db: Session = Depends(get_db)
 ) -> List[HighlightResponse]:
-    """
-    Ask a question about video highlights and get relevant responses.
-    
-    Args:
-        question: The question request containing the text to search for
-        db: Database session dependency
-        
-    Returns:
-        List of relevant highlights with similarity scores
-        
-    Raises:
-        HTTPException: If there's an error processing the question
-    """
+    """Ask a question about video highlights and get relevant responses."""
     try:
         logger.info(f"Processing question: {question.text[:100]}...")
         chat_service = ChatService(db)

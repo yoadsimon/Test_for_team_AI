@@ -1,14 +1,14 @@
-# 🌐 Video Chat Frontend
+# Video Chat Frontend
 
 React-based UI for querying video highlights.
 
-## ✨ Features
+## Features
 - Modern, responsive design
 - Real-time chat interface
 - Video highlight display
 - Semantic search results
 
-## 🚀 Quick Start
+## Quick Start
 
 1. Install dependencies:
    ```bash
@@ -25,7 +25,7 @@ React-based UI for querying video highlights.
    npm run build
    ```
 
-## 📁 Project Structure
+## Project Structure
 ```
 .
 ├── src/
@@ -36,7 +36,7 @@ React-based UI for querying video highlights.
 └── package.json    # Dependencies
 ```
 
-## 🔧 Environment Variables
+## Environment Variables
 ```env
 REACT_APP_API_URL=http://localhost:8000
 ```
