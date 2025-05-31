@@ -63,6 +63,9 @@ docker compose up -d
 - [Video Processor Documentation](step1_video_highlight_extractor/README.md)
 - [Chat Interface Documentation](step2_Interactive_Chat/README.md)
 
+## Development Insights
+For a detailed look at the development process, challenges faced, and architectural decisions made during this project, check out [DEVELOPMENT_INSIGHTS.md](DEVELOPMENT_INSIGHTS.md).
+
 ## Requirements
 - Docker & Docker Compose
 - Google AI Studio API key
