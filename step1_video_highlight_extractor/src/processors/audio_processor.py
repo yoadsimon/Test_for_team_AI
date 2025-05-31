@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 from typing import List, Optional, Tuple
-import speech_recognition as sr
 from moviepy.editor import AudioFileClip
 import numpy as np
 import librosa
@@ -24,32 +23,34 @@ class AudioProcessor:
         self.whisper = WhisperModel("base", device="cpu", compute_type="int8")
 
     def extract_audio_segment(
-        self, audio_path: str, start_time: float, end_time: float, output_path: Optional[str] = None
+        self, audio_path: str, start_time: float, end_time: float
     ) -> str:
         """
-        Extract a segment of audio from a file.
+        Extract a segment of audio between start_time and end_time.
         
         Args:
             audio_path: Path to the audio file
             start_time: Start time in seconds
             end_time: End time in seconds
-            output_path: Path to save the segment (if None, generates a temporary path)
             
         Returns:
             Path to the extracted audio segment
         """
-        if output_path is None:
-            output_path = str(Path(audio_path).with_stem(
-                f"{Path(audio_path).stem}_segment_{start_time:.1f}_{end_time:.1f}"
-            ).with_suffix('.wav'))
+        # Load audio
+        y, sr = librosa.load(audio_path)
         
-        audio = AudioFileClip(audio_path)
-        try:
-            segment = audio.subclip(start_time, end_time)
-            segment.write_audiofile(output_path)
-            return output_path
-        finally:
-            audio.close()
+        # Convert times to samples
+        start_sample = int(start_time * sr)
+        end_sample = int(end_time * sr)
+        
+        # Extract segment
+        segment = y[start_sample:end_sample]
+        
+        # Save to temporary file
+        temp_path = tempfile.mktemp(suffix='.wav')
+        sf.write(temp_path, segment, sr)
+        
+        return temp_path
 
     def transcribe_audio(
         self, audio_path: str, segment_duration: float = 30.0
@@ -170,11 +171,9 @@ class AudioProcessor:
             if os.path.exists(segment_path):
                 os.remove(segment_path)
 
-    def extract_audio_segment(
-        self, audio_path: str, start_time: float, end_time: float
-    ) -> str:
+    def get_audio_energy(self, audio_path: str, start_time: float, end_time: float) -> float:
         """
-        Extract a segment of audio between start_time and end_time.
+        Calculate the average energy/volume in an audio segment.
         
         Args:
             audio_path: Path to the audio file
@@ -182,9 +181,9 @@ class AudioProcessor:
             end_time: End time in seconds
             
         Returns:
-            Path to the extracted audio segment
+            Average energy as a float
         """
-        # Load audio
+        # Load audio segment
         y, sr = librosa.load(audio_path)
         
         # Convert times to samples
@@ -194,40 +193,7 @@ class AudioProcessor:
         # Extract segment
         segment = y[start_sample:end_sample]
         
-        # Save to temporary file
-        temp_path = tempfile.mktemp(suffix='.wav')
-        sf.write(temp_path, segment, sr)
-        
-        return temp_path
-
-    def get_audio_energy(self, audio_path: str, start_time: float, end_time: float) -> float:
-        """
-        Calculate the average audio energy in a specific time segment.
-        
-        Args:
-            audio_path: Path to the audio file
-            start_time: Start time in seconds
-            end_time: End time in seconds
-            
-        Returns:
-            Average audio energy in the segment (0.0 to 1.0)
-        """
-        # Load audio file
-        y, sr = librosa.load(audio_path)
-        
-        # Convert time to samples
-        start_sample = int(start_time * sr)
-        end_sample = int(end_time * sr)
-        
-        # Extract segment
-        segment = y[start_sample:end_sample]
-        
-        if len(segment) == 0:
-            return 0.0
-        
         # Calculate RMS energy
-        hop_length = 512
-        rms = librosa.feature.rms(y=segment, hop_length=hop_length)[0]
+        energy = np.sqrt(np.mean(segment**2))
         
-        # Return average energy
-        return float(np.mean(rms)) 
+        return float(energy) 
