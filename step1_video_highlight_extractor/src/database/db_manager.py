@@ -35,31 +35,51 @@ class DatabaseManager:
 
         return f"postgresql://{user}:{password}@{host}:{port}/{db_name}"
 
-    def create_tables(self) -> None:
-        """Create all database tables."""
-        print("🔍 Attempting to connect to database...")
+    def ensure_tables_exist(self) -> None:
+        """
+        Ensure database tables exist without dropping existing data.
+        This is safer than create_tables() as it preserves existing data.
+        """
         try:
+            # Check if tables exist
             with self.get_session() as session:
-                print("✅ Database connection established")
-                # Check if tables exist and have data
                 try:
-                    print("🔍 Checking if highlights table exists...")
                     # Try to query the highlights table to see if it exists and has data
                     result = session.execute(text("SELECT COUNT(*) FROM highlights"))
                     count = result.scalar()
-                    print(f"✅ Found {count} existing highlights")
-                    if count > 0:
-                        print(f"Database already contains {count} highlights. Skipping table recreation.")
-                        return
-                except Exception as e:
+                    print(f"✅ Database ready with {count} existing highlights")
+                    return
+                except Exception:
                     # Table doesn't exist or other error, proceed with creation
-                    print(f"ℹ️  Table doesn't exist or error occurred: {e}. Proceeding with creation...")
+                    print("ℹ️  Tables don't exist, creating them...")
                     pass
+            
+            # Create extension in a separate transaction if needed
+            print("🔧 Ensuring pgvector extension...")
+            try:
+                with self.get_session() as session:
+                    session.execute(text('CREATE EXTENSION IF NOT EXISTS vector;'))
+                    session.commit()
+                print("✅ pgvector extension ready")
+            except Exception as e:
+                print(f"ℹ️  pgvector extension might already exist: {e}")
                 
+            # Create tables if they don't exist
+            print("🏗️ Creating tables if needed...")
+            Base.metadata.create_all(bind=self.engine)
+            print("✅ Tables ready")
+            
+        except Exception as e:
+            print(f"❌ Database error: {e}")
+            raise
+
+    def create_tables(self) -> None:
+        """Create database tables with proper transaction handling."""
+        try:
+            with self.get_session() as session:
                 print("🗑️ Dropping existing tables...")
-                # Drop all tables first only if no data exists
                 try:
-                    # First, terminate any connections that might be holding locks
+                    # Try to terminate idle connections first  
                     session.execute(text("""
                         SELECT pg_terminate_backend(pid) 
                         FROM pg_stat_activity 
@@ -71,20 +91,26 @@ class DatabaseManager:
                     print("✅ Terminated idle connections")
                 except Exception as e:
                     print(f"ℹ️  Could not terminate connections: {e}")
+                    session.rollback()  # Rollback failed transaction
                 
                 Base.metadata.drop_all(bind=self.engine)
                 print("✅ Tables dropped")
                 
-                print("🔧 Creating pgvector extension...")
-                # Ensure pgvector extension exists
-                session.execute(text('CREATE EXTENSION IF NOT EXISTS vector;'))
-                session.commit()
+            # Create extension in a separate transaction
+            print("🔧 Creating pgvector extension...")
+            try:
+                with self.get_session() as session:
+                    session.execute(text('CREATE EXTENSION IF NOT EXISTS vector;'))
+                    session.commit()
                 print("✅ pgvector extension ready")
+            except Exception as e:
+                print(f"ℹ️  pgvector extension might already exist: {e}")
                 
-                print("🏗️ Creating new tables...")
-                # Create tables with new schema
-                Base.metadata.create_all(bind=self.engine)
-                print("✅ Tables created successfully")
+            # Create tables in another separate transaction  
+            print("🏗️ Creating new tables...")
+            Base.metadata.create_all(bind=self.engine)
+            print("✅ Tables created successfully")
+            
         except Exception as e:
             print(f"❌ Database error: {e}")
             raise
@@ -188,4 +214,92 @@ class DatabaseManager:
                 session.delete(video)
                 session.commit()
                 return True
-            return False 
+            return False
+
+    def batch_save_highlights(self, highlights: List[Highlight]) -> List[Highlight]:
+        """
+        Save multiple highlights to the database in a single transaction for better performance.
+        
+        Args:
+            highlights: List of Highlight objects to save
+            
+        Returns:
+            List of saved highlights with IDs populated
+        """
+        if not highlights:
+            return []
+        
+        with self.get_session() as session:
+            try:
+                # Add all highlights to the session
+                session.add_all(highlights)
+                session.commit()
+                
+                # Refresh all objects to get their IDs
+                for highlight in highlights:
+                    session.refresh(highlight)
+                
+                return highlights
+                
+            except Exception as e:
+                session.rollback()
+                raise e
+
+    def get_videos_summary(self) -> List[dict]:
+        """
+        Get a summary of all videos with highlight counts.
+        
+        Returns:
+            List of dictionaries with video info and highlight counts
+        """
+        with self.get_session() as session:
+            # Use raw SQL for efficient counting
+            result = session.execute(text("""
+                SELECT 
+                    v.id,
+                    v.filename,
+                    v.duration,
+                    v.summary,
+                    v.created_at,
+                    COUNT(h.id) as highlight_count
+                FROM videos v
+                LEFT JOIN highlights h ON v.id = h.video_id
+                GROUP BY v.id, v.filename, v.duration, v.summary, v.created_at
+                ORDER BY v.created_at DESC
+            """))
+            
+            return [
+                {
+                    "id": row[0],
+                    "filename": row[1],
+                    "duration": row[2],
+                    "summary": row[3],
+                    "created_at": row[4],
+                    "highlight_count": row[5]
+                }
+                for row in result
+            ]
+
+    def search_highlights_by_text(self, search_text: str, limit: int = 10) -> List[Highlight]:
+        """
+        Search highlights by text content (simple text search).
+        
+        Args:
+            search_text: Text to search for
+            limit: Maximum number of results
+            
+        Returns:
+            List of matching highlights
+        """
+        with self.get_session() as session:
+            return (
+                session.query(Highlight)
+                .filter(
+                    Highlight.description.ilike(f"%{search_text}%") |
+                    Highlight.summary.ilike(f"%{search_text}%")
+                )
+                .options(joinedload(Highlight.video))
+                .order_by(Highlight.timestamp)
+                .limit(limit)
+                .all()
+            ) 

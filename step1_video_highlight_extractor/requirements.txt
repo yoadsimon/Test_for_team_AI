@@ -4,9 +4,7 @@ psycopg2-binary==2.9.9
 pgvector==0.2.3
 python-dotenv==1.0.0
 google-generativeai==0.3.2
-SpeechRecognition==3.10.0
 moviepy==1.0.3
-python-magic==0.4.27
 SQLAlchemy==2.0.23
 sqlalchemy-utils==0.41.1
 pydantic==2.5.2
@@ -14,12 +12,11 @@ pytest==7.4.3
 black==23.11.0
 isort==5.12.0
 flake8==6.1.0
-scenedetect==0.6.2
 faster-whisper==0.10.0
-torch==2.1.2
-torchvision==0.16.2
-ultralytics==8.3.146  # Latest stable version of YOLOv8
 librosa==0.10.1
 soundfile==0.12.1
+# Enhanced LangChain integration - compatible versions
 langchain-google-genai==0.0.5
-langchain-core==0.1.17 
+langchain-core==0.1.17
+langchain==0.1.5
+langchain-community>=0.0.17 

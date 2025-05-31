@@ -4,7 +4,14 @@ import google.generativeai as genai
 from dataclasses import dataclass
 from dotenv import load_dotenv
 import logging
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from pydantic import BaseModel, Field
+
+# LangChain imports
+from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
+from langchain.prompts import PromptTemplate
+from langchain.output_parsers import PydanticOutputParser
+from langchain.memory import ConversationBufferMemory
+from langchain_core.output_parsers import StrOutputParser
 
 
 @dataclass
@@ -13,13 +20,24 @@ class HighlightDescription:
     timestamp: float
     description: str
     summary: Optional[str] = None
+    importance_score: Optional[int] = None
+    category: Optional[str] = None
+
+
+class HighlightOutput(BaseModel):
+    """Structured output for highlight generation."""
+    is_highlight: bool = Field(description="Whether this moment deserves to be a highlight")
+    importance_score: int = Field(description="Importance score from 1-10")
+    description: str = Field(description="Clear, engaging description of what's happening")
+    category: str = Field(description="Category: action, dialogue, scene_change, key_moment, or other")
+    summary: str = Field(description="One-sentence summary of the significance")
 
 
 class LLMService:
-    """Service for interacting with Google's Gemini models."""
+    """Enhanced LLM service using LangChain for intelligent highlight extraction."""
 
     def __init__(self):
-        """Initialize the LLM service."""
+        """Initialize the enhanced LLM service with LangChain."""
         # Load environment variables
         load_dotenv()
         
@@ -32,8 +50,12 @@ class LLMService:
             # Configure the Gemini API
             genai.configure(api_key=self.api_key)
             
-            # Initialize the model
-            self.model = genai.GenerativeModel('models/gemini-1.5-flash')
+            # Initialize LangChain LLM
+            self.llm = ChatGoogleGenerativeAI(
+                model="gemini-1.5-flash",
+                google_api_key=self.api_key,
+                temperature=0.7
+            )
             
             # Initialize the embedding model
             self.embedding_model = GoogleGenerativeAIEmbeddings(
@@ -42,134 +64,132 @@ class LLMService:
                 task_type="retrieval_document"
             )
             
-            # Set up the generation config
-            self.generation_config = {
-                "temperature": 0.7,
-                "top_p": 0.8,
-                "top_k": 40,
-                "max_output_tokens": 500,
-            }
+            # Set up output parser
+            self.output_parser = PydanticOutputParser(pydantic_object=HighlightOutput)
+            
+            # Set up structured prompts
+            self._setup_prompts()
+            
+            # Set up chains
+            self._setup_chains()
 
             # Set up logging
             self.logger = logging.getLogger(__name__)
+            self.logger.info("Enhanced LLM service with LangChain initialized successfully")
+            
         except Exception as e:
             raise RuntimeError(f"Failed to initialize services: {str(e)}")
 
-    def _generate_completion(self, prompt: str) -> str:
-        """
-        Generate completion using Google's Gemini model.
+    def _setup_prompts(self):
+        """Set up structured prompts for different tasks."""
         
-        Args:
-            prompt: The prompt to send to the model
-            
-        Returns:
-            Generated text response
-        """
-        try:
-            response = self.model.generate_content(
-                prompt,
-                generation_config=self.generation_config
-            )
-            return response.text
-        except Exception as e:
-            self.logger.error(f"Error generating completion: {e}")
-            raise
+        # Highlight filtering and generation prompt
+        self.highlight_prompt = PromptTemplate(
+            input_variables=["audio_text", "timestamp", "video_context"],
+            template="""You are an expert video content analyst. Analyze this moment from a video:
+
+TIMESTAMP: {timestamp:.1f} seconds
+AUDIO: "{audio_text}"
+VIDEO CONTEXT: {video_context}
+
+Determine if this moment should be a highlight. Good highlights include:
+- Important dialogue or key information
+- Significant actions or events
+- Scene transitions or dramatic moments
+- Educational or informative content
+- Emotional or engaging moments
+
+Avoid highlighting:
+- Filler words or casual conversation
+- Long pauses or silence
+- Repetitive content
+- Low-value chatter
+
+{format_instructions}
+
+Provide your analysis:""",
+            partial_variables={"format_instructions": self.output_parser.get_format_instructions()}
+        )
+        
+        # Summary generation prompt
+        self.summary_prompt = PromptTemplate(
+            input_variables=["highlights"],
+            template="""You are summarizing a video based on its key highlights. Here are the important moments:
+
+{highlights}
+
+Create a concise but informative summary that:
+1. Captures the main narrative or key points
+2. Highlights the most important moments
+3. Explains the overall context and significance
+4. Uses engaging, natural language
+5. Is 2-3 sentences long
+
+Summary:"""
+        )
+
+    def _setup_chains(self):
+        """Set up modern LangChain chains using Runnable interface."""
+        
+        # Modern highlight generation chain using pipe operator
+        self.highlight_chain = self.highlight_prompt | self.llm | self.output_parser
+        
+        # Modern summary generation chain using pipe operator  
+        self.summary_chain = self.summary_prompt | self.llm | StrOutputParser()
 
     def generate_highlight_description(
         self,
-        visual_context: str,
         audio_context: str,
-        timestamp: float
-    ) -> HighlightDescription:
+        timestamp: float,
+        video_context: str = "General video content"
+    ) -> Optional[HighlightDescription]:
         """
-        Generate a description for a video highlight using visual and audio context.
+        Generate a highlight description using smart filtering and structured output.
         
         Args:
-            visual_context: Description of the visual content
-            audio_context: Description of the audio content (speech or silence/background)
-            timestamp: Timestamp of the highlight in seconds
+            audio_context: Transcribed audio text
+            timestamp: Timestamp in seconds
+            video_context: Brief context about the video content
             
         Returns:
-            HighlightDescription object containing the description and summary
+            HighlightDescription if moment is significant, None otherwise
         """
-        # Prepare prompt
-        prompt = f"""You are a professional video content analyst. Analyze this moment from a video (timestamp: {timestamp:.1f}s):
-
-Visual content: {visual_context}
-Audio content: {audio_context}
-
-Please provide a clear, engaging description that:
-1. Focuses on what's happening in the scene - the key actions, events, or moments
-2. Describes who or what is in the scene and what they're doing
-3. Integrates any speech or audio naturally into the description
-4. Captures the mood or atmosphere of the moment
-5. Uses natural, conversational language
-6. Avoids technical details unless they're crucial to understanding the content
-
-Format your response exactly as follows:
-DESCRIPTION: [A clear, engaging description that tells what's happening in this moment]
-SUMMARY: [A one-sentence summary that captures the main point or significance of this moment]
-
-Example good description:
-"John confidently walks into the conference room, carrying a presentation folder. He greets the team with a smile and begins setting up his laptop. The room is well-lit with natural light from large windows, and the team appears attentive and engaged."
-
-Example good summary:
-"John enters a meeting room to deliver a presentation to an engaged team."
-"""
-
-        # Generate description
-        text = self._generate_completion(prompt)
-
-        # Parse response
-        description = ""
-        summary = None
-        
-        for line in text.split('\n'):
-            if line.startswith('DESCRIPTION:'):
-                description = line.replace('DESCRIPTION:', '').strip()
-            elif line.startswith('SUMMARY:'):
-                summary = line.replace('SUMMARY:', '').strip()
-
-        if not description:
-            description = text.strip()
-
-        return HighlightDescription(
-            timestamp=timestamp,
-            description=description,
-            summary=summary
-        )
-
-    def analyze_visual_content(self, frame_description: str) -> str:
-        """
-        Analyze visual content of a frame and generate a description.
-        
-        Args:
-            frame_description: Description of the visual content
+        try:
+            # Use modern LangChain Runnable chain - this directly returns a HighlightOutput object
+            result = self.highlight_chain.invoke({
+                "audio_text": audio_context,
+                "timestamp": timestamp,
+                "video_context": video_context
+            })
             
-        Returns:
-            Focused description of important visual content
-        """
-        prompt = f"""You are a video frame analyzer. Analyze this visual content from a video frame:
-
-{frame_description}
-
-Please provide a focused description of what's important in this frame. Focus on:
-1. Key subjects (people, important objects)
-2. Significant actions or events
-3. Important visual information that adds meaning
-4. Context clues about the setting or situation
-
-Ignore technical details like lighting and color unless they're crucial to understanding the content.
-Keep the description concise and meaningful.
-"""
-
-        return self._generate_completion(prompt)
+            # The modern chain with output_parser directly returns a HighlightOutput object
+            # Only create highlight if the AI determines it's significant
+            if result.is_highlight and result.importance_score >= 6:  # Threshold for quality
+                return HighlightDescription(
+                    timestamp=timestamp,
+                    description=result.description,
+                    summary=result.summary,
+                    importance_score=result.importance_score,
+                    category=result.category
+                )
+            
+            return None  # Not significant enough to be a highlight
+            
+        except Exception as e:
+            self.logger.error(f"Error generating highlight description: {e}")
+            # Fallback to simple description
+            return HighlightDescription(
+                timestamp=timestamp,
+                description=f"Video moment with audio: {audio_context[:100]}...",
+                summary="Video content",
+                importance_score=5
+            )
 
     def generate_highlight_summary(
         self, highlights: List[HighlightDescription]
     ) -> str:
         """
-        Generate a summary of multiple highlights.
+        Generate a summary of multiple highlights using LangChain.
         
         Args:
             highlights: List of highlight descriptions
@@ -178,82 +198,54 @@ Keep the description concise and meaningful.
             Summary of the highlights
         """
         if not highlights:
-            return ""
+            return "No significant highlights found in this video."
 
-        # Prepare prompt with all highlights
-        prompt = """You are a video content summarizer. Here are the key moments from a video:
+        # Prepare highlights for summary
+        highlights_text = "\n".join([
+            f"• At {h.timestamp:.1f}s: {h.description} (Score: {h.importance_score or 'N/A'})"
+            for h in highlights
+        ])
 
-"""
-        for h in highlights:
-            prompt += f"At {h.timestamp:.1f}s: {h.description}\n"
-
-        prompt += """
-Please provide a concise but meaningful summary that:
-1. Captures the main narrative or key points
-2. Highlights the most important moments
-3. Explains the overall context and significance
-4. Connects related events or themes
-
-Focus on telling the story of what happened in the video, not just listing events.
-Keep the summary clear and engaging, around 2-3 sentences.
-"""
-
-        return self._generate_completion(prompt)
-
-    def generate_text(self, prompt: str) -> str:
-        """
-        Generate text using the LLM.
-        
-        Args:
-            prompt: The prompt to generate text from
-            
-        Returns:
-            Generated text
-        """
         try:
-            response = self.model.generate_content(prompt)
-            return response.text
+            # Use modern LangChain Runnable chain - this directly returns a string
+            summary = self.summary_chain.invoke({"highlights": highlights_text})
+            return summary.strip()
         except Exception as e:
-            self.logger.error(f"Failed to generate text: {e}")
-            return "Error generating description."
-
-    def generate_description(self, text: str) -> str:
-        """Generate a description using the LLM."""
-        try:
-            model = genai.GenerativeModel('models/gemini-1.5-pro-latest')
-            response = model.generate_content(text)
-            return response.text
-        except Exception as e:
-            self.logger.error(f"Failed to generate description: {str(e)}")
-            return "Error generating description."
+            self.logger.error(f"Error generating summary: {e}")
+            return f"Video contains {len(highlights)} key highlights covering various important moments."
 
     def generate_embedding(self, text: str) -> List[float]:
-        """Generate an embedding for the given text using Google's Gemini model."""
+        """
+        Generate embedding for text using Google's embedding model.
+        
+        Args:
+            text: Text to generate embedding for
+            
+        Returns:
+            List of embedding values
+        """
         try:
-            # Generate embedding using Google's Gemini model
             embedding = self.embedding_model.embed_query(text)
             return embedding
-            
         except Exception as e:
-            self.logger.error(f"Failed to generate embedding: {str(e)}")
-            return [0.0] * 1536  # Return zero vector of correct dimension
+            self.logger.error(f"Error generating embedding: {e}")
+            # Return a zero vector as fallback
+            return [0.0] * 768  # Standard embedding dimension
 
-    def generate_summary(self, highlights: List[Dict[str, Any]]) -> str:
-        """Generate a summary of the highlights."""
+    def batch_generate_embeddings(self, texts: List[str]) -> List[List[float]]:
+        """
+        Generate embeddings for multiple texts efficiently.
+        
+        Args:
+            texts: List of texts to generate embeddings for
+            
+        Returns:
+            List of embedding vectors
+        """
         try:
-            # Format highlights for the prompt
-            highlights_text = "\n".join(
-                f"At {h['timestamp']:.1f}s: {h['description']}"
-                for h in highlights
-            )
-            
-            prompt = f"""Please provide a concise summary of the following video highlights:
-
-{highlights_text}
-
-Summary:"""
-            
-            return self.generate_description(prompt)
+            embeddings = self.embedding_model.embed_documents(texts)
+            return embeddings
         except Exception as e:
-            self.logger.error(f"Failed to generate summary: {str(e)}")
-            return "Error generating summary." 
+            self.logger.error(f"Error generating batch embeddings: {e}")
+            # Return zero vectors as fallback
+            return [[0.0] * 768] * len(texts) 
