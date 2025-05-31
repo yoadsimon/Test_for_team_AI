@@ -17,6 +17,7 @@ interface Highlight {
   description: string;
   timestamp: number;
   similarity_score: number;
+  video_name: string;
 }
 
 const Chat: React.FC = () => {
@@ -93,7 +94,7 @@ const Chat: React.FC = () => {
             <ListItem key={highlight.id} divider>
               <ListItemText
                 primary={highlight.description}
-                secondary={`At ${formatVideoTime(highlight.timestamp)} into the video (${(highlight.similarity_score * 100).toFixed(1)}% relevant)`}
+                secondary={`${highlight.video_name} • At ${formatVideoTime(highlight.timestamp)} • ${(highlight.similarity_score * 100).toFixed(1)}% relevant`}
               />
             </ListItem>
           ))}
