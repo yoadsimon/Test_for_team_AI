@@ -22,6 +22,21 @@ Interactive system to query video highlights:
 └── step2_Interactive_Chat/           # Chat interface
 ```
 
+## 📹 Video Files & Git LFS
+
+This repository contains demonstration videos stored using **Git LFS (Large File Storage)**:
+- `step1_video_highlight_extractor/videos/my_introduction.mov` - Introduction video
+- `step1_video_highlight_extractor/videos/how_i_approched_the_problem.mov` - Problem approach explanation
+
+**Note for reviewers**: If you don't see the actual video files after cloning, ensure you have Git LFS installed:
+```bash
+# Install Git LFS (if not already installed)
+git lfs install
+
+# Download the video files
+git lfs pull
+```
+
 ## Quick Start
 
 1. Set up your environment:
