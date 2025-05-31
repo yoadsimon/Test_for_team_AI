@@ -6,7 +6,6 @@ class QuestionRequest(BaseModel):
 
 class HighlightResponse(BaseModel):
     id: int
-    text: str
+    description: str
     timestamp: float
-    similarity_score: float
-    summary: Optional[str] = None 
+    similarity_score: float 

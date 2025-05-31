@@ -14,8 +14,8 @@ import axios from 'axios';
 
 interface Highlight {
   id: string;
-  text: string;
-  timestamp: string;
+  description: string;
+  timestamp: number;
   similarity_score: number;
 }
 
@@ -24,6 +24,16 @@ const Chat: React.FC = () => {
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const formatVideoTime = (seconds: number): string => {
+    if (seconds < 60) {
+      return `${seconds.toFixed(1)} seconds`;
+    }
+    
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toFixed(1).padStart(4, '0')} minutes`;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,8 +92,8 @@ const Chat: React.FC = () => {
           {highlights.map((highlight) => (
             <ListItem key={highlight.id} divider>
               <ListItemText
-                primary={highlight.text}
-                secondary={`Timestamp: ${new Date(highlight.timestamp).toLocaleString()} (Similarity: ${(highlight.similarity_score * 100).toFixed(1)}%)`}
+                primary={highlight.description}
+                secondary={`At ${formatVideoTime(highlight.timestamp)} into the video (${(highlight.similarity_score * 100).toFixed(1)}% relevant)`}
               />
             </ListItem>
           ))}

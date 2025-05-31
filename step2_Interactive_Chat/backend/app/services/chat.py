@@ -49,10 +49,9 @@ class ChatService:
             results = [
                 {
                     "id": highlight.id,
-                    "text": highlight.description,
+                    "description": highlight.description,
                     "timestamp": highlight.timestamp,
-                    "similarity_score": similarity_score,
-                    "summary": highlight.summary
+                    "similarity_score": similarity_score
                 }
                 for highlight, similarity_score in highlights
             ]
