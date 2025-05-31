@@ -8,4 +8,5 @@ class HighlightResponse(BaseModel):
     id: int
     description: str
     timestamp: float
-    similarity_score: float 
+    similarity_score: float
+    video_name: str 

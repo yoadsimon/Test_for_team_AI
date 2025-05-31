@@ -5,7 +5,7 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.core.config import settings
-from app.models.highlight import Highlight
+from app.models.highlight import Highlight, Video
 import logging
 
 logger = logging.getLogger(__name__)
@@ -33,8 +33,10 @@ class ChatService:
             highlights = (
                 self.db.query(
                     Highlight,
+                    Video.filename,
                     (1 - Highlight.embedding.cosine_distance(question_embedding)).label('similarity_score')
                 )
+                .join(Video, Highlight.video_id == Video.id)
                 .filter(Highlight.embedding.isnot(None))
                 .filter(1 - Highlight.embedding.cosine_distance(question_embedding) >= settings.SIMILARITY_THRESHOLD)
                 .order_by(Highlight.embedding.cosine_distance(question_embedding))
@@ -51,9 +53,10 @@ class ChatService:
                     "id": highlight.id,
                     "description": highlight.description,
                     "timestamp": highlight.timestamp,
-                    "similarity_score": similarity_score
+                    "similarity_score": similarity_score,
+                    "video_name": filename
                 }
-                for highlight, similarity_score in highlights
+                for highlight, filename, similarity_score in highlights
             ]
             
             logger.info(f"Found {len(results)} relevant highlights for question")

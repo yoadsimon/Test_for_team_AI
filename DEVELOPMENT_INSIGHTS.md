@@ -30,6 +30,7 @@ Example:
   - Lower cost per request
   - Better suited for basic video analysis and highlight extraction
 - Note: If deeper analysis or more complex video understanding was needed, would consider switching to Pro for its enhanced capabilities in complex reasoning and longer context understanding
+- **Issue identified**: In videos with minimal movement, the model returns repetitive background descriptions. Solution depends on desired result
 
 ## Security & Infrastructure
 - Move all API keys and secrets to cloud-based secret management (AWS Secrets Manager/Vault)
@@ -43,7 +44,7 @@ Example:
 - Add performance monitoring and metrics
 - Create dashboards for system health monitoring
 
-## Development Challenges & Lessons Learned
+## Development Challenges
 
 ### Initial Over-engineering
 - Started with complex approach using multiple ML models (YOLO, etc.)
