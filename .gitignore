@@ -87,7 +87,7 @@ step1_video_highlight_extractor/videos/*.WAV
 !step1_video_highlight_extractor/docker-compose.yml
 !step1_video_highlight_extractor/requirements.txt
 !step1_video_highlight_extractor/README.md
-!step1_video_highlight_extractor/yolov8n.pt
+!step1_video_highlight_extractor/yolo1on.pt
 !step1_video_highlight_extractor/.env.example
 
 # Step 2: Interactive Chat

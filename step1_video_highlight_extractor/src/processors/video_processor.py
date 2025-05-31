@@ -67,7 +67,7 @@ class VideoProcessor:
         
         # Initialize models
         self.whisper_model = WhisperModel(model_size, device="cpu", compute_type="int8")
-        self.yolo_model = YOLO("yolov8n.pt")  # Use nano model for speed
+        self.yolo_model = YOLO("yolov10n.pt")  # Use YOLOv10 nano model for speed
         
         # Create output directories
         self.output_dir = Path("processed_media")
@@ -281,7 +281,7 @@ class VideoProcessor:
         return frame_path
 
     def _detect_objects(self, frame_path: str) -> List[str]:
-        """Detect objects in a frame using YOLOv8."""
+        """Detect objects in a frame using YOLOv10."""
         results = self.yolo_model(frame_path)
         
         # Get unique object classes

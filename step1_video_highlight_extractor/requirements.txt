@@ -18,7 +18,7 @@ scenedetect==0.6.2
 faster-whisper==0.10.0
 torch==2.1.2
 torchvision==0.16.2
-ultralytics==8.0.196  # For YOLOv8
+ultralytics==8.3.146  # Latest stable version of YOLOv8
 librosa==0.10.1
 soundfile==0.12.1
 langchain-google-genai==0.0.5
